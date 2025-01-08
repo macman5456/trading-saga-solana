@@ -23,8 +23,9 @@ const Index = () => {
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Using devnet connection
   const connection = new Connection(
-    "https://api.mainnet-beta.solana.com",
+    "https://api.devnet.solana.com",
     "confirmed"
   );
 
@@ -153,7 +154,7 @@ const Index = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">Batch Transactions</h1>
+          <h1 className="text-2xl font-semibold">Batch Transactions (Devnet)</h1>
           <p className="text-muted-foreground">
             Automatically create new wallet addresses, complete the buy transaction,
             transfer to the main wallet, and close the account. Boost the number of
@@ -243,4 +244,3 @@ const Index = () => {
 };
 
 export default Index;
-

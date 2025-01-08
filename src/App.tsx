@@ -17,8 +17,9 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const network = WalletAdapterNetwork.Mainnet;
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+  // Using devnet for development and testing
+  const network = WalletAdapterNetwork.Devnet;
+  const endpoint = useMemo(() => "https://api.devnet.solana.com", []);
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (

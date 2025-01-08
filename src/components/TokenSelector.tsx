@@ -18,7 +18,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
 
-  const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
   useEffect(() => {
     const fetchWalletTokens = async () => {
