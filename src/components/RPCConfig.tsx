@@ -17,16 +17,16 @@ interface RPCConfigProps {
 
 const DEFAULT_RPC_ENDPOINTS = [
   {
+    name: "QuickNode",
+    url: "https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813",
+  },
+  {
     name: "GenesysGo",
     url: "https://ssc-dao.genesysgo.net",
   },
   {
     name: "Serum",
     url: "https://solana-api.projectserum.com",
-  },
-  {
-    name: "Quicknode",
-    url: "https://api.mainnet-beta.solana.com",
   },
   {
     name: "Custom",
@@ -48,7 +48,10 @@ const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(url);
+      const connection = new Connection(url, {
+        commitment: "confirmed",
+        confirmTransactionInitialTimeout: 60000
+      });
       const version = await connection.getVersion();
       const endTime = performance.now();
       
