@@ -14,14 +14,17 @@ export const processTransaction = async (
     console.log("Buy amount:", buyAmount, "SOL");
     console.log("Jito tip:", jitoTip, "SOL");
 
-    // Get minimum rent exemption
-    const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-    console.log("Rent exemption:", rentExemption / LAMPORTS_PER_SOL, "SOL");
-
     // Calculate amounts in lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalRequired = buyAmountLamports + rentExemption + jitoTipLamports + 5000; // Adding 5000 lamports for fee
+    const transactionFee = 5000; // Standard fee
+
+    // Get minimum rent exemption for a data size of 0 (just storing SOL)
+    const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+    console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+
+    // Calculate total amount needed
+    const totalRequired = buyAmountLamports + rentExemption + jitoTipLamports + transactionFee;
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
@@ -31,6 +34,7 @@ export const processTransaction = async (
       buyAmount: buyAmountLamports / LAMPORTS_PER_SOL,
       rentExemption: rentExemption / LAMPORTS_PER_SOL,
       jitoTip: jitoTipLamports / LAMPORTS_PER_SOL,
+      transactionFee: transactionFee / LAMPORTS_PER_SOL,
     });
 
     if (sourceBalance < totalRequired) {
@@ -44,12 +48,14 @@ export const processTransaction = async (
     // Create transaction
     const transaction = new Transaction();
 
-    // First transfer funds to the new wallet
+    // Create and initialize the account with SystemProgram.createAccount
     transaction.add(
-      SystemProgram.transfer({
+      SystemProgram.createAccount({
         fromPubkey: sourceWallet.publicKey,
-        toPubkey: newWallet.publicKey,
-        lamports: buyAmountLamports + rentExemption,
+        newAccountPubkey: newWallet.publicKey,
+        lamports: buyAmountLamports + rentExemption, // Include both the transfer amount and rent exemption
+        space: 0, // No additional data needed
+        programId: SystemProgram.programId, // Using System Program as the owner
       })
     );
 
@@ -68,8 +74,8 @@ export const processTransaction = async (
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Sign transaction with source wallet only
-    transaction.sign(sourceWallet);
+    // Both wallets need to sign: source wallet for spending and new wallet for account creation
+    transaction.sign(sourceWallet, newWallet);
 
     console.log("Sending transaction...");
     
