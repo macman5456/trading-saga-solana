@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { buildTransferTransaction } from "@/utils/transaction/transactionUtils";
@@ -50,17 +50,33 @@ const TransactionProcessor = ({
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
-      const transaction = buildTransferTransaction(
-        sourceWallet,
-        newWallet.publicKey,
-        transferAmount,
-        jitoTip,
-        blockhash
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: newWallet.publicKey,
+          lamports: transferAmount,
+        })
       );
 
-      const rawTransaction = transaction.serialize();
+      if (jitoTip > 0) {
+        transaction.add(
+          SystemProgram.transfer({
+            fromPubkey: sourceWallet.publicKey,
+            toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+            lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+          })
+        );
+      }
+
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = sourceWallet.publicKey;
+      
+      // Sign the transaction with the source wallet
+      transaction.sign(sourceWallet);
       
       console.log("Sending transaction...");
+      const rawTransaction = transaction.serialize();
+      
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: false,
         maxRetries: 5,
