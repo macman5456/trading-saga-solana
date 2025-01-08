@@ -10,18 +10,18 @@ export const dexOptions: DexOption[] = [
     id: "raydium", 
     name: "Raydium", 
     icon: "🔸",
-    rpcEndpoint: "https://api.mainnet-beta.solana.com" 
+    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
   },
   { 
     id: "pump", 
     name: "Pump", 
     icon: "🎯",
-    rpcEndpoint: "https://pump.rpc.fun"
+    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
   },
   { 
     id: "moonshot", 
     name: "MoonShot", 
     icon: "🌙",
-    rpcEndpoint: "https://moonshot.rpc.network"
+    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
   },
 ];
