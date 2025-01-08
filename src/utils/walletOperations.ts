@@ -7,9 +7,16 @@ const TRANSACTION_FEE = 5000; // 0.000005 SOL
 
 export const validatePrivateKey = (privateKey: string): Keypair | null => {
   try {
-    if (!privateKey) return null;
+    console.log("Attempting to validate private key...");
+    if (!privateKey) {
+      console.error("No private key provided");
+      return null;
+    }
+
     const decodedKey = bs58.decode(privateKey);
-    return Keypair.fromSecretKey(decodedKey);
+    const keypair = Keypair.fromSecretKey(decodedKey);
+    console.log("Private key validated successfully for public key:", keypair.publicKey.toString());
+    return keypair;
   } catch (error) {
     console.error("Error validating private key:", error);
     return null;
