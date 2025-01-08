@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { dexOptions } from "@/config/dexOptions";
 import { testConnection, findLiquidityPool } from "@/utils/connectionUtils";
 import DexButton from "./DexButton";
+import { findRaydiumPool } from "@/utils/dex/raydiumUtils";
+import { useConnection } from "@solana/wallet-adapter-react";
 
 interface DexSelectorProps {
   selectedToken: string;
@@ -14,6 +16,7 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   const { toast } = useToast();
   const [selectedDex, setSelectedDex] = useState<string>("raydium");
   const [isConnecting, setIsConnecting] = useState(false);
+  const { connection } = useConnection();
 
   const handleDexSelection = async (dexId: string) => {
     setIsConnecting(true);
@@ -59,15 +62,31 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
     const selectedDexOption = dexOptions.find(dex => dex.id === selectedDex);
     if (!selectedDexOption) return;
 
-    const found = await findLiquidityPool(selectedDexOption.rpcEndpoint, selectedToken);
-    
-    toast({
-      title: found ? "Liquidity Pool Found" : "Search Failed",
-      description: found 
-        ? `Found ${selectedToken} liquidity pool on ${selectedDexOption.name}`
-        : `Could not find liquidity pool on ${selectedDexOption.name}`,
-      variant: found ? "default" : "destructive",
-    });
+    try {
+      let found = false;
+      
+      if (selectedDex === "raydium") {
+        const pool = await findRaydiumPool(connection, selectedToken);
+        found = pool !== null;
+      } else {
+        found = await findLiquidityPool(selectedDexOption.rpcEndpoint, selectedToken);
+      }
+      
+      toast({
+        title: found ? "Liquidity Pool Found" : "Search Failed",
+        description: found 
+          ? `Found ${selectedToken} liquidity pool on ${selectedDexOption.name}`
+          : `Could not find liquidity pool on ${selectedDexOption.name}`,
+        variant: found ? "default" : "destructive",
+      });
+    } catch (error: any) {
+      console.error("Error finding liquidity pool:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to search for liquidity pool",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

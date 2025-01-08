@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
-import { findRaydiumPool } from "@/utils/dex/raydiumUtils";
+import { findRaydiumPool, createRaydiumSwapTransaction } from "@/utils/dex/raydiumUtils";
 import { useConnection } from "@solana/wallet-adapter-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface DexButtonProps {
   id: string;
@@ -13,11 +14,24 @@ interface DexButtonProps {
 
 const DexButton = ({ id, name, icon, isSelected, isConnecting, onClick }: DexButtonProps) => {
   const { connection } = useConnection();
+  const { toast } = useToast();
 
   const handleClick = async () => {
     if (id === "raydium") {
-      // Additional Raydium-specific initialization could go here
-      console.log("Initializing Raydium DEX");
+      try {
+        console.log("Initializing Raydium DEX");
+        toast({
+          title: "Initializing Raydium",
+          description: "Setting up Raydium DEX connection...",
+        });
+      } catch (error: any) {
+        console.error("Raydium initialization error:", error);
+        toast({
+          title: "Initialization Failed",
+          description: error.message || "Failed to initialize Raydium",
+          variant: "destructive",
+        });
+      }
     }
     onClick();
   };
