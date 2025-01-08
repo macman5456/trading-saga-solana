@@ -20,19 +20,19 @@ const dexOptions: DexOption[] = [
     id: "raydium", 
     name: "Raydium", 
     icon: "🔸",
-    rpcEndpoint: "https://api.mainnet-beta.solana.com" // Raydium uses Solana mainnet
+    rpcEndpoint: "https://api.mainnet-beta.solana.com" 
   },
   { 
     id: "pump", 
     name: "Pump", 
     icon: "🎯",
-    rpcEndpoint: "https://pump.rpc.fun" // Pump.fun network endpoint
+    rpcEndpoint: "https://pump.rpc.fun"
   },
   { 
     id: "moonshot", 
     name: "MoonShot", 
     icon: "🌙",
-    rpcEndpoint: "https://moonshot.rpc.network" // Moonshot network endpoint
+    rpcEndpoint: "https://moonshot.rpc.network"
   },
 ];
 
@@ -43,8 +43,9 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
 
   const testConnection = async (endpoint: string): Promise<boolean> => {
     try {
-      const connection = new Connection(endpoint, "confirmed");
-      await connection.getSlot();
+      const connection = new Connection(endpoint);
+      const version = await connection.getVersion();
+      console.log("Connected to network version:", version);
       return true;
     } catch (error) {
       console.error("Connection test failed:", error);
@@ -65,6 +66,8 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
       setIsConnecting(false);
       return;
     }
+
+    console.log("Attempting to connect to:", selectedDexOption.name, "at", selectedDexOption.rpcEndpoint);
 
     const isConnected = await testConnection(selectedDexOption.rpcEndpoint);
 
@@ -96,8 +99,8 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
     if (!selectedDexOption) return;
 
     try {
-      const connection = new Connection(selectedDexOption.rpcEndpoint, "confirmed");
-      await connection.getSlot(); // Test connection
+      const connection = new Connection(selectedDexOption.rpcEndpoint);
+      await connection.getVersion();
 
       toast({
         title: "Finding Liquidity Pool",
