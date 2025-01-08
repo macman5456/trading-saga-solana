@@ -59,10 +59,10 @@ const TransactionProcessor = ({
         blockhash
       );
 
-      // Sign transaction
-      const signedTransaction = transaction.sign(sourceWallet, newWallet);
+      // Sign transaction - fixed the signing process
+      transaction.sign([sourceWallet, newWallet]);
       
-      const rawTransaction = signedTransaction.serialize();
+      const rawTransaction = transaction.serialize();
       
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
