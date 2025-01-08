@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import PrivateKeyInput from "./form/PrivateKeyInput";
 import AddressDisplay from "./form/AddressDisplay";
 import BalanceDisplay from "./form/BalanceDisplay";
-import WalletList from "./WalletList";
+import WalletManagement from "./wallet/WalletManagement";
 
 interface WalletInfo {
   publicKey: string;
@@ -251,9 +251,11 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         </p>
       </div>
 
-      <WalletList 
-        wallets={wallets} 
+      <WalletManagement 
+        wallets={wallets}
         onWalletsImported={handleWalletsImported}
+        mainWalletPrivateKey={privateKey}
+        rpcEndpoint={selectedDexEndpoint}
       />
     </div>
   );
