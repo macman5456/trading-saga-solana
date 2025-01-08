@@ -14,12 +14,34 @@ export const validatePrivateKey = (privateKey: string): Keypair | null => {
   }
 };
 
+export const checkWalletBalance = async (
+  connection: Connection,
+  wallet: Keypair
+): Promise<number> => {
+  try {
+    const balance = await connection.getBalance(wallet.publicKey);
+    console.log("Wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
+    return balance;
+  } catch (error) {
+    console.error("Error checking wallet balance:", error);
+    throw new Error("Failed to fetch wallet balance");
+  }
+};
+
 export const createAndFundWallet = async (
   connection: Connection,
   amount: number,
   jitoTip: number,
   fromWallet: Keypair
 ): Promise<Keypair> => {
+  // First check if the source wallet has enough balance
+  const sourceBalance = await checkWalletBalance(connection, fromWallet);
+  const requiredAmount = (amount * LAMPORTS_PER_SOL) + RENT_EXEMPTION + (jitoTip * LAMPORTS_PER_SOL);
+  
+  if (sourceBalance < requiredAmount) {
+    throw new Error(`Insufficient balance. Required: ${requiredAmount / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+  }
+
   const newWallet = Keypair.generate();
   const transaction = new Transaction();
   
@@ -45,10 +67,16 @@ export const createAndFundWallet = async (
     );
   }
 
-  const signature = await connection.sendTransaction(transaction, [fromWallet]);
-  await connection.confirmTransaction(signature);
-  
-  return newWallet;
+  try {
+    const signature = await connection.sendTransaction(transaction, [fromWallet]);
+    console.log("Transaction sent:", signature);
+    await connection.confirmTransaction(signature);
+    console.log("Transaction confirmed");
+    return newWallet;
+  } catch (error) {
+    console.error("Transaction error:", error);
+    throw new Error("Failed to create and fund wallet");
+  }
 };
 
 export const closeWallet = async (
@@ -56,8 +84,12 @@ export const closeWallet = async (
   walletToClose: Keypair,
   destinationWallet: PublicKey
 ): Promise<string> => {
-  const balance = await connection.getBalance(walletToClose.publicKey);
+  const balance = await checkWalletBalance(connection, walletToClose);
   
+  if (balance <= 0) {
+    throw new Error("No balance to transfer");
+  }
+
   const transaction = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: walletToClose.publicKey,
@@ -66,8 +98,14 @@ export const closeWallet = async (
     })
   );
 
-  const signature = await connection.sendTransaction(transaction, [walletToClose]);
-  await connection.confirmTransaction(signature);
-  
-  return signature;
+  try {
+    const signature = await connection.sendTransaction(transaction, [walletToClose]);
+    console.log("Close wallet transaction sent:", signature);
+    await connection.confirmTransaction(signature);
+    console.log("Close wallet transaction confirmed");
+    return signature;
+  } catch (error) {
+    console.error("Error closing wallet:", error);
+    throw new Error("Failed to close wallet");
+  }
 };

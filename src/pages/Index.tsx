@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
-import { validatePrivateKey, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
+import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
@@ -45,8 +45,8 @@ const Index = () => {
       setPublicKey(pubKey);
       
       try {
-        const balance = await connection.getBalance(keypair.publicKey);
-        console.log("Retrieved SOL balance:", balance);
+        const balance = await checkWalletBalance(connection, keypair);
+        console.log("Retrieved SOL balance:", balance / LAMPORTS_PER_SOL);
         setSolBalance(balance / LAMPORTS_PER_SOL);
       } catch (error) {
         console.error("Error fetching balance:", error);
@@ -92,6 +92,10 @@ const Index = () => {
     let successCount = 0;
 
     try {
+      // Check initial balance
+      const initialBalance = await checkWalletBalance(connection, mainWallet);
+      console.log("Initial balance:", initialBalance / LAMPORTS_PER_SOL, "SOL");
+
       for (let i = 0; i < addressCount; i++) {
         toast({
           title: "Processing",
@@ -105,6 +109,8 @@ const Index = () => {
           parseFloat(jitoTip),
           mainWallet
         );
+
+        console.log(`New wallet ${i + 1} created:`, newWallet.publicKey.toString());
 
         // Close wallet and return funds
         await closeWallet(
@@ -121,14 +127,14 @@ const Index = () => {
       }
 
       // Refresh main wallet balance
-      const newBalance = await connection.getBalance(mainWallet.publicKey);
+      const newBalance = await checkWalletBalance(connection, mainWallet);
       setSolBalance(newBalance / LAMPORTS_PER_SOL);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Transaction error:", error);
       toast({
         title: "Error",
-        description: `Failed after completing ${successCount} transactions. Please try again.`,
+        description: error.message || `Failed after completing ${successCount} transactions. Please try again.`,
         variant: "destructive",
       });
     } finally {
