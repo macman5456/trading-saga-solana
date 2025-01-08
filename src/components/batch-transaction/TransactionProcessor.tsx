@@ -59,9 +59,12 @@ const TransactionProcessor = ({
         blockhash
       );
 
-      transaction.sign(sourceWallet, newWallet);
+      // Sign transaction
+      const signedTransaction = transaction.sign(sourceWallet, newWallet);
       
-      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      const rawTransaction = signedTransaction.serialize();
+      
+      const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
         maxRetries: 3,
         preflightCommitment: 'confirmed',
@@ -92,6 +95,11 @@ const TransactionProcessor = ({
   };
 
   const handleStartTransaction = async () => {
+    if (isProcessing) {
+      console.log("Transaction already in progress");
+      return;
+    }
+
     try {
       console.log("Starting transaction process with params:", {
         addressCount,
