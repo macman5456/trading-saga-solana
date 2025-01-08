@@ -7,7 +7,7 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 
@@ -18,8 +18,11 @@ const Index = () => {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
 
-  // Use a public RPC endpoint
-  const connection = new Connection(clusterApiUrl('mainnet-beta'));
+  // Use a more reliable public RPC endpoint
+  const connection = new Connection("https://api.mainnet-beta.solana.com", {
+    commitment: "confirmed",
+    wsEndpoint: "wss://api.mainnet-beta.solana.com/",
+  });
 
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -53,7 +56,9 @@ const Index = () => {
     const fetchBalances = async () => {
       if (publicKey) {
         try {
+          console.log("Fetching balance for address:", publicKey);
           const solBalance = await connection.getBalance(new PublicKey(publicKey));
+          console.log("Retrieved SOL balance:", solBalance);
           setSolBalance(solBalance / LAMPORTS_PER_SOL);
           
           // For now, we'll reset token balance when address changes
