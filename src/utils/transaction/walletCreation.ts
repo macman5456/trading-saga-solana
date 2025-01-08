@@ -19,7 +19,7 @@ export const createNewWallet = async (
   const totalAmount = Math.floor(amount * LAMPORTS_PER_SOL) + rentExemption;
   console.log("Total amount to transfer (including rent):", totalAmount / LAMPORTS_PER_SOL, "SOL");
 
-  const transaction = await createFundingTransaction(
+  const { transaction } = await createFundingTransaction(
     connection,
     sourceWallet.publicKey,
     newWallet.publicKey,
@@ -27,16 +27,31 @@ export const createNewWallet = async (
     jitoTip
   );
 
-  const result = await executeTransaction(connection, transaction, sourceWallet);
-  
-  if (result.success) {
-    return {
-      publicKey: newWallet.publicKey.toString(),
-      privateKey: bs58.encode(newWallet.secretKey),
-    };
-  } else {
-    throw new Error(result.error || "Transaction failed");
+  // Simulate transaction before sending
+  const simulation = await connection.simulateTransaction(transaction);
+  console.log("Transaction simulation result:", simulation.value);
+
+  if (simulation.value.err) {
+    throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
   }
+
+  // Sign and send transaction
+  transaction.sign(sourceWallet);
+  const signature = await connection.sendRawTransaction(transaction.serialize(), {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed',
+  });
+
+  // Wait for confirmation
+  const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+  if (confirmation.value.err) {
+    throw new Error(`Transaction failed: ${confirmation.value.err}`);
+  }
+
+  return {
+    publicKey: newWallet.publicKey.toString(),
+    privateKey: bs58.encode(newWallet.secretKey),
+  };
 };
 
 const createFundingTransaction = async (
@@ -76,52 +91,4 @@ const createFundingTransaction = async (
   transaction.feePayer = fromPubkey;
 
   return { transaction, blockhash, lastValidBlockHeight };
-};
-
-const executeTransaction = async (
-  connection: Connection,
-  { transaction, blockhash, lastValidBlockHeight }: any,
-  sourceWallet: Keypair
-) => {
-  try {
-    const simulation = await connection.simulateTransaction(transaction);
-    console.log("Transaction simulation details:", {
-      error: simulation.value.err,
-      unitsConsumed: simulation.value.unitsConsumed,
-      logs: simulation.value.logs
-    });
-
-    if (simulation.value.err) {
-      return { 
-        success: false, 
-        error: `Transaction simulation failed: ${JSON.stringify(simulation.value.err)}` 
-      };
-    }
-
-    transaction.sign(sourceWallet);
-    const signature = await connection.sendRawTransaction(transaction.serialize());
-    console.log("Transaction sent with signature:", signature);
-
-    const confirmation = await connection.confirmTransaction({
-      signature,
-      blockhash,
-      lastValidBlockHeight,
-    });
-
-    if (confirmation.value.err) {
-      return { 
-        success: false, 
-        error: `Transaction failed: ${confirmation.value.err}` 
-      };
-    }
-
-    console.log("Transaction confirmed successfully");
-    return { success: true };
-  } catch (error: any) {
-    console.error("Detailed transaction error:", error);
-    return { 
-      success: false, 
-      error: `Transaction failed: ${error.message}` 
-    };
-  }
 };

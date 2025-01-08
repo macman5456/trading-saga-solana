@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { createNewWallet } from "@/utils/transaction/walletCreation";
@@ -33,6 +33,28 @@ const TransactionProcessor = ({
   const { connection } = useConnection();
   const { toast } = useToast();
 
+  const simulateTransaction = async (transaction: Transaction, sourceWallet: Keypair) => {
+    try {
+      console.log("Simulating transaction...");
+      const simulation = await connection.simulateTransaction(transaction);
+      
+      if (simulation.value.err) {
+        console.error("Simulation error:", simulation.value.err);
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
+
+      console.log("Simulation successful:", {
+        unitsConsumed: simulation.value.unitsConsumed,
+        logs: simulation.value.logs
+      });
+
+      return true;
+    } catch (error: any) {
+      console.error("Simulation error:", error);
+      throw error;
+    }
+  };
+
   const handleStartTransaction = async () => {
     try {
       console.log("Starting transaction process...");
@@ -57,6 +79,11 @@ const TransactionProcessor = ({
         throw new Error("Please select a token first");
       }
 
+      // Get latest blockhash before starting transactions
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      console.log("Got fresh blockhash:", blockhash);
+
+      // Validate initial balance
       await validateWalletBalance(connection, sourceWallet, addressCount, buyAmount, jitoTip);
 
       setCurrentStep(1);
@@ -66,6 +93,7 @@ const TransactionProcessor = ({
         try {
           console.log(`Processing wallet ${i + 1} of ${addressCount}`);
           
+          // Create transaction for new wallet
           const newWallet = await createNewWallet(
             connection,
             sourceWallet,
@@ -75,6 +103,7 @@ const TransactionProcessor = ({
 
           console.log("New wallet created:", newWallet.publicKey);
 
+          // Add wallet to generated list
           generatedWallets.push({
             ...newWallet,
             solBalance: buyAmount,
@@ -83,6 +112,7 @@ const TransactionProcessor = ({
 
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
+
         } catch (error: any) {
           console.error(`Error processing wallet ${i + 1}:`, error);
           toast({
