@@ -16,11 +16,11 @@ interface RPCConfigProps {
   defaultEndpoint: string;
 }
 
-// Only include GenesysGo as it's more reliable
+// Only use Helius RPC endpoint
 const DEFAULT_RPC_ENDPOINTS = [
   {
-    name: "GenesysGo",
-    url: "https://ssc-dao.genesysgo.net",
+    name: "Helius RPC",
+    url: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
   }
 ];
 
@@ -52,7 +52,7 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       
       toast({
         title: "RPC Connected",
-        description: `Successfully connected to GenesysGo RPC endpoint`,
+        description: `Successfully connected to Helius RPC endpoint`,
       });
     } catch (error) {
       console.error("RPC Connection error:", error);

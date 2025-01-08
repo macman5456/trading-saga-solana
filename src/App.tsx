@@ -17,8 +17,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-// GenesysGo is more reliable and doesn't require API keys
-const DEFAULT_RPC = "https://ssc-dao.genesysgo.net";
+const DEFAULT_RPC = "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
