@@ -1,7 +1,7 @@
 import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import bs58 from "bs58";
 
-// Minimum balance for rent exemption (approximately 0.00203928 SOL)
+// Updated rent exemption calculation (approximately 0.00204928 SOL)
 const RENT_EXEMPTION = 2039280;
 
 export const validatePrivateKey = (privateKey: string): Keypair | null => {
@@ -42,42 +42,50 @@ export const createAndFundWallet = async (
   fromWallet: Keypair
 ): Promise<Keypair> => {
   try {
-    // First check if the source wallet has enough balance
+    // Calculate total required amount including rent exemption
+    const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
+    const jitoTipInLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
+    const totalRequired = amountInLamports + RENT_EXEMPTION + jitoTipInLamports;
+
+    // Check source wallet balance
     const sourceBalance = await checkWalletBalance(connection, fromWallet);
-    const requiredAmount = (amount * LAMPORTS_PER_SOL) + RENT_EXEMPTION + (jitoTip * LAMPORTS_PER_SOL);
+    console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+    console.log("Required amount:", totalRequired / LAMPORTS_PER_SOL, "SOL");
     
-    if (sourceBalance < requiredAmount) {
-      throw new Error(`Insufficient balance. Required: ${requiredAmount / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+    if (sourceBalance < totalRequired) {
+      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
     }
 
     const newWallet = Keypair.generate();
     console.log("Generated new wallet:", newWallet.publicKey.toString());
 
+    // Create transaction to fund new wallet with rent exemption included
     const transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: fromWallet.publicKey,
         toPubkey: newWallet.publicKey,
-        lamports: Math.floor(amount * LAMPORTS_PER_SOL) + RENT_EXEMPTION,
+        lamports: amountInLamports + RENT_EXEMPTION, // Include rent exemption in transfer
       })
     );
 
+    // Add Jito tip if specified
     if (jitoTip > 0) {
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: fromWallet.publicKey,
           toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-          lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+          lamports: jitoTipInLamports,
         })
       );
     }
 
-    // Set recent blockhash and sign transaction
     const { blockhash } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = fromWallet.publicKey;
 
-    // Sign and send transaction
     transaction.sign(fromWallet);
+    console.log("Sending transaction...");
+    
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       preflightCommitment: 'confirmed',
@@ -85,7 +93,6 @@ export const createAndFundWallet = async (
 
     console.log("Transaction sent:", signature);
     
-    // Wait for confirmation
     const confirmation = await connection.confirmTransaction({
       signature,
       blockhash,
@@ -118,18 +125,23 @@ export const closeWallet = async (
 
     const transaction = new Transaction();
     
-    // Get recent blockhash
     const { blockhash } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletToClose.publicKey;
 
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: walletToClose.publicKey,
-        toPubkey: destinationWallet,
-        lamports: balance,
-      })
-    );
+    // Transfer remaining balance minus the transaction fee
+    const minimumRent = await connection.getMinimumBalanceForRentExemption(0);
+    const transferAmount = balance - minimumRent;
+
+    if (transferAmount > 0) {
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: walletToClose.publicKey,
+          toPubkey: destinationWallet,
+          lamports: transferAmount,
+        })
+      );
+    }
 
     transaction.sign(walletToClose);
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
