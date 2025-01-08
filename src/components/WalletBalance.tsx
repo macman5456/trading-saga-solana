@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
+import { useConnection } from "@solana/wallet-adapter-react";
 
 interface WalletBalanceProps {
   publicKey: string;
@@ -12,11 +13,7 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   const [solBalance, setSolBalance] = useState<number>(0);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
-
-  const connection = new Connection(
-    "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
-    "confirmed"
-  );
+  const { connection } = useConnection();
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -27,22 +24,36 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
       }
 
       try {
-        const balance = await connection.getBalance(new PublicKey(publicKey));
+        // Validate public key format first
+        let pubKey: PublicKey;
+        try {
+          pubKey = new PublicKey(publicKey);
+        } catch (error) {
+          console.error("Invalid public key format:", error);
+          toast({
+            title: "Error",
+            description: "Invalid wallet address format",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("Fetching balance for:", pubKey.toString());
+        console.log("Using connection:", connection.rpcEndpoint);
+
+        const balance = await connection.getBalance(pubKey);
+        console.log("Retrieved balance:", balance / LAMPORTS_PER_SOL, "SOL");
+        
         const newSolBalance = balance / LAMPORTS_PER_SOL;
         setSolBalance(newSolBalance);
         onBalanceUpdate(newSolBalance, 0); // Update parent component
-        console.log("Updated SOL balance:", newSolBalance);
       } catch (error) {
         console.error("Error fetching balance:", error);
-        if (error instanceof Error) {
-          toast({
-            title: "Error",
-            description: "Failed to fetch wallet balance. Retrying...",
-            variant: "destructive",
-          });
-          // Retry after 3 seconds
-          setTimeout(fetchBalance, 3000);
-        }
+        toast({
+          title: "Error",
+          description: "Failed to fetch wallet balance. Please check your connection and try again.",
+          variant: "destructive",
+        });
       }
     };
 
