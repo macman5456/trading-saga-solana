@@ -1,7 +1,6 @@
 import { useState } from "react";
 import BatchTransactionForm from "@/components/BatchTransactionForm";
 import TransactionLog from "@/components/TransactionLog";
-import WalletList from "@/components/WalletList";
 
 interface WalletInfo {
   publicKey: string;
@@ -22,9 +21,6 @@ const Index = () => {
           onWalletsGenerated={setGeneratedWallets}
           onSuccessCountChange={setSuccessCount}
         />
-        <div className="mt-8">
-          <WalletList wallets={generatedWallets} />
-        </div>
       </div>
 
       {/* Right Sidebar */}
