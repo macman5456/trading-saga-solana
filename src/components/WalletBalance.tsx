@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
@@ -15,65 +15,70 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { connection } = useConnection();
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  
+  // Minimum time between fetches (5 seconds)
+  const FETCH_COOLDOWN = 5000;
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!publicKey) {
-        setSolBalance(0);
-        setTokenBalance(0);
+  const fetchBalance = useCallback(async () => {
+    if (!publicKey) {
+      setSolBalance(0);
+      setTokenBalance(0);
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastFetchTime < FETCH_COOLDOWN) {
+      return; // Skip if we fetched recently
+    }
+
+    setIsLoading(true);
+    setLastFetchTime(now);
+
+    try {
+      let pubKey: PublicKey;
+      try {
+        pubKey = new PublicKey(publicKey);
+      } catch (error) {
+        console.error("Invalid public key format:", error);
+        toast({
+          title: "Error",
+          description: "Invalid wallet address format",
+          variant: "destructive",
+        });
+        setIsLoading(false);
         return;
       }
 
-      setIsLoading(true);
+      console.log("Fetching balance for:", pubKey.toString());
+      
+      const balance = await connection.getBalance(pubKey);
+      console.log("Retrieved balance:", balance / LAMPORTS_PER_SOL, "SOL");
+      
+      const newSolBalance = balance / LAMPORTS_PER_SOL;
+      setSolBalance(newSolBalance);
+      onBalanceUpdate(newSolBalance, 0);
+      
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch wallet balance. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [publicKey, connection, onBalanceUpdate, toast, lastFetchTime]);
 
-      try {
-        // Validate public key format first
-        let pubKey: PublicKey;
-        try {
-          pubKey = new PublicKey(publicKey);
-        } catch (error) {
-          console.error("Invalid public key format:", error);
-          toast({
-            title: "Error",
-            description: "Invalid wallet address format",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        console.log("Fetching balance for:", pubKey.toString());
-        console.log("Using connection:", connection.rpcEndpoint);
-
-        const balance = await connection.getBalance(pubKey);
-        console.log("Retrieved balance:", balance / LAMPORTS_PER_SOL, "SOL");
-        
-        const newSolBalance = balance / LAMPORTS_PER_SOL;
-        setSolBalance(newSolBalance);
-        onBalanceUpdate(newSolBalance, 0); // Update parent component
-        
-        toast({
-          title: "Success",
-          description: "Wallet balance updated successfully",
-        });
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch wallet balance. Please check your connection and try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchBalance();
+    
     // Set up an interval to refresh the balance every 30 seconds
     const interval = setInterval(fetchBalance, 30000);
-
+    
     return () => clearInterval(interval);
-  }, [publicKey, connection, onBalanceUpdate, toast]);
+  }, [fetchBalance]);
 
   return (
     <div className="grid grid-cols-2 gap-4">
