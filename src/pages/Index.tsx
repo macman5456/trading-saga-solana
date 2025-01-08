@@ -18,8 +18,8 @@ const Index = () => {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
 
-  // Use a reliable public RPC endpoint
-  const connection = new Connection("https://api.devnet.solana.com", {
+  // Use the Helius RPC endpoint
+  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", {
     commitment: "confirmed",
   });
 
@@ -178,7 +178,6 @@ const Index = () => {
       </div>
     </div>
   );
-
 };
 
 export default Index;
