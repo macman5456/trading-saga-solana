@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { executeWalletCreation, executeTokenPurchase } from "@/utils/transactionUtils";
+import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
+import bs58 from "bs58";
 
 interface TransactionProcessorProps {
   privateKey: string;
@@ -28,6 +29,58 @@ const TransactionProcessor = ({
   const { connection } = useConnection();
   const { toast } = useToast();
 
+  const createAndFundWallet = useCallback(async (sourceWallet: Keypair, amount: number) => {
+    const newWallet = Keypair.generate();
+    console.log("Creating new wallet:", newWallet.publicKey.toString());
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: sourceWallet.publicKey,
+        toPubkey: newWallet.publicKey,
+        lamports: amount * LAMPORTS_PER_SOL,
+      })
+    );
+
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = sourceWallet.publicKey;
+    
+    try {
+      // Simulate the transaction first
+      const simulation = await connection.simulateTransaction(transaction);
+      console.log("Transaction simulation result:", simulation);
+
+      if (simulation.value.err) {
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
+
+      // Sign and send the transaction
+      transaction.sign(sourceWallet);
+      const signature = await connection.sendRawTransaction(transaction.serialize());
+      console.log("Transaction sent:", signature);
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      });
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
+
+      return {
+        publicKey: newWallet.publicKey.toString(),
+        privateKey: bs58.encode(newWallet.secretKey),
+      };
+    } catch (error: any) {
+      console.error("Transaction error:", error);
+      throw new Error(`Transaction failed: ${error.message}`);
+    }
+  }, [connection]);
+
   const handleStartTransaction = async () => {
     try {
       console.log("Starting transaction process...");
@@ -35,7 +88,9 @@ const TransactionProcessor = ({
       setCurrentStep(0);
       setProcessedWallets(0);
 
-      const sourceWallet = validatePrivateKey(privateKey);
+      const decodedKey = bs58.decode(privateKey);
+      const sourceWallet = Keypair.fromSecretKey(decodedKey);
+      
       if (!sourceWallet) {
         throw new Error("Invalid private key provided");
       }
@@ -44,6 +99,10 @@ const TransactionProcessor = ({
         throw new Error("Please select a token first");
       }
 
+      // Check source wallet balance
+      const balance = await connection.getBalance(sourceWallet.publicKey);
+      console.log("Source wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
+
       setCurrentStep(1);
       const generatedWallets = [];
 
@@ -51,21 +110,8 @@ const TransactionProcessor = ({
         try {
           console.log(`Processing wallet ${i + 1} of ${addressCount}`);
           
-          const newWallet = await executeWalletCreation(
-            connection,
-            buyAmount,
-            sourceWallet
-          );
-
-          setCurrentStep(2);
-          const purchaseSuccess = await executeTokenPurchase(
-            connection,
-            selectedToken
-          );
-
-          if (!purchaseSuccess) {
-            throw new Error("Token purchase failed");
-          }
+          const newWallet = await createAndFundWallet(sourceWallet, buyAmount);
+          console.log("New wallet created:", newWallet.publicKey);
 
           generatedWallets.push({
             ...newWallet,
