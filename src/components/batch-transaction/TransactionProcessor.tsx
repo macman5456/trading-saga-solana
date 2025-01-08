@@ -57,8 +57,7 @@ const TransactionProcessor = ({
       }
 
       // Calculate required balance and validate
-      const { totalRequired, rentExemption, transactionFeeBuffer } = 
-        await calculateRequiredBalance(connection, addressCount, buyAmount, jitoTip);
+      const { totalRequired } = await calculateRequiredBalance(connection, addressCount, buyAmount, jitoTip);
       await validateBalance(connection, sourceWallet.publicKey, totalRequired);
 
       setCurrentStep(1);
@@ -71,7 +70,7 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("New wallet public key:", newWallet.publicKey.toString());
 
-          const transferAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption;
+          const transferAmount = buyAmount * LAMPORTS_PER_SOL;
           console.log("Transfer amount:", transferAmount / LAMPORTS_PER_SOL, "SOL");
           
           const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
@@ -85,19 +84,10 @@ const TransactionProcessor = ({
             blockhash
           );
 
-          // Simulate transaction before sending
-          console.log("Simulating transaction for wallet:", newWallet.publicKey.toString());
-          const simulation = await connection.simulateTransaction(transaction);
-          
-          if (simulation.value.err) {
-            console.error("Simulation error:", simulation.value.err);
-            throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-          }
-
           // Sign and send transaction
           transaction.sign(sourceWallet);
           const signature = await connection.sendRawTransaction(transaction.serialize(), {
-            skipPreflight: false,
+            skipPreflight: true,
             preflightCommitment: 'confirmed',
           });
 

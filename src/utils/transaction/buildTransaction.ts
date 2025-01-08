@@ -16,25 +16,24 @@ export const buildTransferTransaction = (
 
   const transaction = new Transaction();
   
-  // Basic SOL transfer
-  transaction.add(
-    SystemProgram.transfer({
-      fromPubkey: sourceWallet.publicKey,
-      toPubkey: newWallet.publicKey,
-      lamports: transferAmount,
-    })
-  );
+  // Main SOL transfer instruction
+  const transferInstruction = SystemProgram.transfer({
+    fromPubkey: sourceWallet.publicKey,
+    toPubkey: newWallet.publicKey,
+    lamports: transferAmount,
+  });
 
-  // Add Jito tip if specified
+  transaction.add(transferInstruction);
+
+  // Add Jito tip as a separate instruction if specified
   if (jitoTip > 0) {
     console.log("Adding Jito tip:", jitoTip, "SOL");
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: sourceWallet.publicKey,
-        toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-        lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
-      })
-    );
+    const jitoTipInstruction = SystemProgram.transfer({
+      fromPubkey: sourceWallet.publicKey,
+      toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+      lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+    });
+    transaction.add(jitoTipInstruction);
   }
 
   transaction.recentBlockhash = blockhash;
