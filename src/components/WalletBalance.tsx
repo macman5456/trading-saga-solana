@@ -15,7 +15,7 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { connection } = useConnection();
-  
+
   const fetchBalance = useCallback(async () => {
     if (!publicKey) {
       setSolBalance(0);
@@ -26,22 +26,9 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
     setIsLoading(true);
 
     try {
-      let pubKey: PublicKey;
-      try {
-        pubKey = new PublicKey(publicKey);
-      } catch (error) {
-        console.error("Invalid public key format:", error);
-        toast({
-          title: "Error",
-          description: "Invalid wallet address format",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      const pubKey = new PublicKey(publicKey);
       console.log("Fetching balance for:", pubKey.toString());
-      
-      // Create a new connection for each balance check to avoid the body stream error
+
       const balance = await connection.getBalance(pubKey, 'confirmed');
       const solBalanceValue = balance / LAMPORTS_PER_SOL;
       

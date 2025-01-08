@@ -58,7 +58,11 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
       // Fetch balance
       setIsLoadingBalance(true);
       try {
-        const connection = new Connection(selectedDexEndpoint, "confirmed");
+        const connection = new Connection(selectedDexEndpoint, {
+          commitment: 'confirmed',
+          confirmTransactionInitialTimeout: 60000
+        });
+        
         const balance = await checkWalletBalance(connection, keypair);
         setSolBalance((balance / LAMPORTS_PER_SOL).toFixed(4));
         setBalanceError(null);

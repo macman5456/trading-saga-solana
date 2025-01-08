@@ -21,7 +21,13 @@ export const checkWalletBalance = async (
 ): Promise<number> => {
   try {
     console.log("Checking balance for wallet:", wallet.publicKey.toString());
-    const balance = await connection.getBalance(wallet.publicKey);
+    
+    // Get the balance with a new connection request
+    const balance = await connection.getBalance(
+      wallet.publicKey,
+      'confirmed'
+    );
+    
     console.log("Retrieved wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
     return balance;
   } catch (error) {
