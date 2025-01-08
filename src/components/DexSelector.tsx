@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface DexOption {
   id: string;
@@ -9,6 +10,7 @@ interface DexOption {
 
 interface DexSelectorProps {
   selectedToken: string;
+  onDexSelect?: (dex: string) => void;
 }
 
 const dexOptions: DexOption[] = [
@@ -17,22 +19,20 @@ const dexOptions: DexOption[] = [
   { id: "moonshot", name: "MoonShot", icon: "🌙" },
 ];
 
-const DexSelector = ({ selectedToken }: DexSelectorProps) => {
+const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   const { toast } = useToast();
+  const [selectedDex, setSelectedDex] = useState<string>("raydium");
 
-  const handleRaydiumTrade = (dexId: string) => {
-    if (dexId === "raydium" && selectedToken) {
-      // Construct Raydium swap URL with the selected token
-      const raydiumUrl = `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${selectedToken}`;
-      
-      // Open Raydium in a new tab
-      window.open(raydiumUrl, '_blank');
-      
-      toast({
-        title: "Opening Raydium",
-        description: "Redirecting to Raydium swap interface",
-      });
+  const handleDexSelection = (dexId: string) => {
+    setSelectedDex(dexId);
+    if (onDexSelect) {
+      onDexSelect(dexId);
     }
+    
+    toast({
+      title: "DEX Selected",
+      description: `Selected ${dexId.charAt(0).toUpperCase() + dexId.slice(1)} as trading DEX`,
+    });
   };
 
   return (
@@ -42,10 +42,10 @@ const DexSelector = ({ selectedToken }: DexSelectorProps) => {
         {dexOptions.map((dex) => (
           <button
             key={dex.id}
-            onClick={() => handleRaydiumTrade(dex.id)}
+            onClick={() => handleDexSelection(dex.id)}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
-              dex.id === "raydium"
+              selectedDex === dex.id
                 ? "bg-primary text-white"
                 : "bg-secondary hover:bg-secondary/80"
             )}
@@ -62,7 +62,14 @@ const DexSelector = ({ selectedToken }: DexSelectorProps) => {
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
           disabled={!selectedToken}
-          onClick={() => handleRaydiumTrade("raydium")}
+          onClick={() => {
+            if (selectedToken) {
+              toast({
+                title: "Finding Liquidity Pool",
+                description: `Searching for ${selectedToken} liquidity pool on ${selectedDex}`,
+              });
+            }
+          }}
         >
           Find Liquidity Pool
         </button>
