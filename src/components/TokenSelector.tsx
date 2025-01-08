@@ -19,7 +19,6 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [hasInitialized, setHasInitialized] = useState(false);
 
   const connection = new Connection("https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813", {
     commitment: "confirmed",
@@ -35,68 +34,60 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
       if (!connected || !publicKey) {
         if (isSubscribed) {
           setTokens([]);
-          setHasInitialized(false);
         }
         return;
       }
 
-      setIsLoading(true);
+      if (!isLoading) {
+        setIsLoading(true);
 
-      try {
-        console.log("Fetching tokens for wallet:", publicKey.toString());
-        const balance = await connection.getBalance(publicKey);
-        console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
-        
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        });
-        
-        console.log("Token accounts fetched:", tokenAccounts.value.length);
-
-        if (!isSubscribed) return;
-
-        // Only show the toast once when first connecting
-        if (!hasInitialized) {
-          toast({
-            title: "Wallet Connected",
-            description: "Successfully connected to wallet and fetched tokens",
+        try {
+          console.log("Fetching tokens for wallet:", publicKey.toString());
+          const balance = await connection.getBalance(publicKey);
+          console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
+          
+          const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
+            programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
           });
-          setHasInitialized(true);
-        }
+          
+          console.log("Token accounts fetched:", tokenAccounts.value.length);
 
-        const tokenList = [
-          {
-            address: "SOL",
-            symbol: "SOL"
-          },
-          ...tokenAccounts.value.map(account => ({
-            address: account.account.data.parsed.info.mint,
-            symbol: `Token (${account.account.data.parsed.info.mint.slice(0, 4)}...)`
-          }))
-        ];
+          if (!isSubscribed) return;
 
-        setTokens(tokenList);
-        setRetryCount(0);
-        setIsLoading(false);
+          const tokenList = [
+            {
+              address: "SOL",
+              symbol: "SOL"
+            },
+            ...tokenAccounts.value.map(account => ({
+              address: account.account.data.parsed.info.mint,
+              symbol: `Token (${account.account.data.parsed.info.mint.slice(0, 4)}...)`
+            }))
+          ];
 
-      } catch (error) {
-        console.error("Error fetching tokens:", error);
-        
-        if (!isSubscribed) return;
-
-        if (retryCount < MAX_RETRIES) {
-          console.log(`Retrying... Attempt ${retryCount + 1} of ${MAX_RETRIES}`);
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-            fetchWalletTokens();
-          }, RETRY_DELAY);
-        } else {
+          setTokens(tokenList);
+          setRetryCount(0);
           setIsLoading(false);
-          toast({
-            title: "Error",
-            description: "Failed to fetch wallet tokens after multiple attempts. Please try reconnecting your wallet.",
-            variant: "destructive",
-          });
+
+        } catch (error) {
+          console.error("Error fetching tokens:", error);
+          
+          if (!isSubscribed) return;
+
+          if (retryCount < MAX_RETRIES) {
+            console.log(`Retrying... Attempt ${retryCount + 1} of ${MAX_RETRIES}`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+              fetchWalletTokens();
+            }, RETRY_DELAY);
+          } else {
+            setIsLoading(false);
+            toast({
+              title: "Error",
+              description: "Failed to fetch wallet tokens after multiple attempts. Please try reconnecting your wallet.",
+              variant: "destructive",
+            });
+          }
         }
       }
     };
@@ -106,7 +97,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     return () => {
       isSubscribed = false;
     };
-  }, [connected, publicKey, retryCount, connection, toast]);
+  }, [connected, publicKey, retryCount, connection, toast, isLoading]);
 
   const handleCustomTokenAdd = () => {
     try {
