@@ -4,7 +4,7 @@ import { validatePrivateKey } from "@/utils/walletOperations";
 import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
-import { buildTransferTransaction } from "@/utils/transaction/transactionUtils";
+import { calculateTransferAmount } from "@/utils/transaction/rentCalculations";
 import { WalletCreationResult } from "@/utils/transaction/types";
 
 interface TransactionProcessorProps {
@@ -41,7 +41,6 @@ const TransactionProcessor = ({
   const processTransaction = async (
     sourceWallet: Keypair,
     newWallet: Keypair,
-    transferAmount: number,
     retryCount = 0
   ): Promise<string> => {
     try {
@@ -49,6 +48,13 @@ const TransactionProcessor = ({
       
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
+
+      // Calculate required amounts including rent
+      const { transferAmount, totalRequired } = await calculateTransferAmount(
+        connection,
+        buyAmount,
+        jitoTip
+      );
 
       const transaction = new Transaction().add(
         SystemProgram.transfer({
@@ -71,7 +77,6 @@ const TransactionProcessor = ({
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = sourceWallet.publicKey;
       
-      // Sign the transaction with the source wallet
       transaction.sign(sourceWallet);
       
       console.log("Sending transaction...");
@@ -104,7 +109,7 @@ const TransactionProcessor = ({
       if (retryCount < MAX_RETRIES) {
         console.log(`Retrying transaction in ${RETRY_DELAY}ms...`);
         await sleep(RETRY_DELAY);
-        return processTransaction(sourceWallet, newWallet, transferAmount, retryCount + 1);
+        return processTransaction(sourceWallet, newWallet, retryCount + 1);
       }
       throw error;
     }
@@ -133,12 +138,18 @@ const TransactionProcessor = ({
         throw new Error("Please select a token before starting");
       }
 
-      const transferAmount = buyAmount * LAMPORTS_PER_SOL;
+      // Calculate total required amount for all transactions
+      const { totalRequired } = await calculateTransferAmount(
+        connection,
+        buyAmount,
+        jitoTip
+      );
+      
       const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
       console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
 
-      if (sourceBalance < transferAmount * addressCount) {
-        throw new Error(`Insufficient balance. Required: ${transferAmount * addressCount / LAMPORTS_PER_SOL} SOL`);
+      if (sourceBalance < totalRequired * addressCount) {
+        throw new Error(`Insufficient balance. Required: ${(totalRequired * addressCount) / LAMPORTS_PER_SOL} SOL`);
       }
 
       const generatedWallets: WalletCreationResult[] = [];
@@ -150,7 +161,7 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-          const signature = await processTransaction(sourceWallet, newWallet, transferAmount);
+          const signature = await processTransaction(sourceWallet, newWallet);
           console.log("Transaction successful with signature:", signature);
 
           generatedWallets.push({
