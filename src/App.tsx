@@ -16,8 +16,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-// Default RPC endpoint (GenesysGo is generally more reliable)
-const DEFAULT_RPC = "https://ssc-dao.genesysgo.net";
+// Default RPC endpoint (Public Mainnet Beta API)
+const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);

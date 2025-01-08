@@ -18,12 +18,12 @@ interface RPCConfigProps {
 
 const DEFAULT_RPC_ENDPOINTS = [
   {
-    name: "GenesysGo",
-    url: "https://ssc-dao.genesysgo.net",
+    name: "Mainnet Beta",
+    url: "https://api.mainnet-beta.solana.com",
   },
   {
-    name: "Helius",
-    url: "https://rpc.helius.xyz/?api-key=YOUR_API_KEY",
+    name: "GenesysGo",
+    url: "https://ssc-dao.genesysgo.net",
   },
   {
     name: "Custom",
@@ -45,10 +45,7 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(url, {
-        commitment: "confirmed",
-        confirmTransactionInitialTimeout: 60000
-      });
+      const connection = new Connection(url);
       const version = await connection.getVersion();
       const endTime = performance.now();
       
@@ -68,11 +65,11 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       
       let errorMessage = "Failed to connect to RPC endpoint.";
       if (error.message.includes("403")) {
-        errorMessage = "Access denied. Please check your API key or try a different endpoint.";
+        errorMessage = "Access denied. Please try a different endpoint.";
       } else if (error.message.includes("timeout")) {
-        errorMessage = "Connection timed out. The RPC endpoint may be experiencing high latency.";
+        errorMessage = "Connection timed out. Please try a different endpoint.";
       } else if (error.message.includes("429")) {
-        errorMessage = "Rate limit exceeded. Please try again later or use a different endpoint.";
+        errorMessage = "Rate limit exceeded. Please try a different endpoint.";
       }
       
       toast({
