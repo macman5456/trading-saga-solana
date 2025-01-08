@@ -34,13 +34,9 @@ const TransactionProcessor = ({
   const { toast } = useToast();
 
   const handleStartTransaction = async () => {
-    if (isProcessing) {
-      console.log("Transaction already in progress");
-      return;
-    }
+    if (isProcessing) return;
 
     try {
-      console.log("Starting transaction process...");
       setIsProcessing(true);
       setCurrentStep(1);
       setProcessedWallets(0);
@@ -50,20 +46,14 @@ const TransactionProcessor = ({
         throw new Error("Invalid private key provided");
       }
 
-      console.log("Source wallet validated:", sourceWallet.publicKey.toString());
-
       const generatedWallets: WalletCreationResult[] = [];
 
       for (let i = 0; i < addressCount; i++) {
         try {
-          console.log(`Processing wallet ${i + 1} of ${addressCount}`);
+          console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
           
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
-
-          // Get rent exemption amount
-          const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-          console.log("Rent exemption required:", rentExemption / 1e9, "SOL");
 
           const signature = await processTransaction(
             connection,
@@ -73,7 +63,7 @@ const TransactionProcessor = ({
             jitoTip
           );
           
-          console.log("Transaction successful with signature:", signature);
+          console.log("Transaction completed with signature:", signature);
 
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
@@ -85,7 +75,6 @@ const TransactionProcessor = ({
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
-          // Add delay between transactions
           if (i < addressCount - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -118,7 +107,6 @@ const TransactionProcessor = ({
     } finally {
       setIsProcessing(false);
       setCurrentStep(0);
-      setProcessedWallets(0);
     }
   };
 
