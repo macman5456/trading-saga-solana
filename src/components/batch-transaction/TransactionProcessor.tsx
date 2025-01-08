@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { processTransaction } from "@/utils/transaction/processTransaction";
@@ -68,14 +68,34 @@ const TransactionProcessor = ({
             throw new Error(`Insufficient balance for wallet ${i + 1}. Required: ${totalAmount / LAMPORTS_PER_SOL} SOL`);
           }
 
-          // Process SOL transfer
-          const signature = await processTransaction(
-            connection,
-            sourceWallet,
-            newWallet,
-            buyAmount,
-            jitoTip
+          // Create and send SOL transfer transaction
+          const transaction = new Transaction().add(
+            SystemProgram.transfer({
+              fromPubkey: sourceWallet.publicKey,
+              toPubkey: newWallet.publicKey,
+              lamports: totalAmount,
+            })
           );
+
+          // Add Jito tip if specified
+          if (jitoTip > 0) {
+            transaction.add(
+              SystemProgram.transfer({
+                fromPubkey: sourceWallet.publicKey,
+                toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+                lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+              })
+            );
+          }
+
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = sourceWallet.publicKey;
+          
+          transaction.sign(sourceWallet);
+          
+          const signature = await connection.sendRawTransaction(transaction.serialize());
+          await connection.confirmTransaction(signature);
           
           console.log("SOL transfer completed with signature:", signature);
 
