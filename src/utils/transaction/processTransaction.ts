@@ -21,22 +21,20 @@ export const processTransaction = async (
     // Calculate amounts in lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalTransferAmount = buyAmountLamports;
+    const totalRequired = buyAmountLamports + rentExemption + jitoTipLamports + 5000; // Adding 5000 lamports for fee
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    const requiredBalance = totalTransferAmount + jitoTipLamports + 5000; // Adding 5000 lamports for fee
-
     console.log("\nBalance check:", {
       sourceBalance: sourceBalance / LAMPORTS_PER_SOL,
-      required: requiredBalance / LAMPORTS_PER_SOL,
+      required: totalRequired / LAMPORTS_PER_SOL,
       buyAmount: buyAmountLamports / LAMPORTS_PER_SOL,
       rentExemption: rentExemption / LAMPORTS_PER_SOL,
       jitoTip: jitoTipLamports / LAMPORTS_PER_SOL,
     });
 
-    if (sourceBalance < requiredBalance) {
-      throw new Error(`Insufficient balance. Required: ${requiredBalance / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+    if (sourceBalance < totalRequired) {
+      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
     }
 
     // Get latest blockhash
@@ -46,14 +44,12 @@ export const processTransaction = async (
     // Create transaction
     const transaction = new Transaction();
 
-    // Create account instruction
+    // First transfer funds to the new wallet
     transaction.add(
-      SystemProgram.createAccount({
+      SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
-        newAccountPubkey: newWallet.publicKey,
-        lamports: rentExemption + totalTransferAmount,
-        space: 0,
-        programId: SystemProgram.programId,
+        toPubkey: newWallet.publicKey,
+        lamports: buyAmountLamports + rentExemption,
       })
     );
 
@@ -72,8 +68,8 @@ export const processTransaction = async (
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Sign transaction with both wallets
-    transaction.sign(sourceWallet, newWallet);
+    // Sign transaction with source wallet only
+    transaction.sign(sourceWallet);
 
     console.log("Sending transaction...");
     
