@@ -71,7 +71,7 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("New wallet public key:", newWallet.publicKey.toString());
 
-          const transferAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption + transactionFeeBuffer;
+          const transferAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption;
           console.log("Transfer amount:", transferAmount / LAMPORTS_PER_SOL, "SOL");
           
           const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');

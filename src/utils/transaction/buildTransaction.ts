@@ -16,7 +16,7 @@ export const buildTransferTransaction = (
 
   const transaction = new Transaction();
   
-  // Use transfer instead of createAccount since we just want to send SOL
+  // Basic SOL transfer
   transaction.add(
     SystemProgram.transfer({
       fromPubkey: sourceWallet.publicKey,
