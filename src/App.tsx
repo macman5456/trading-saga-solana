@@ -16,8 +16,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-// Default RPC endpoint (Public Mainnet Beta API)
-const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
+// Default RPC endpoint (GenesysGo is more reliable for high-volume requests)
+const DEFAULT_RPC = "https://ssc-dao.genesysgo.net";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
@@ -25,7 +25,7 @@ const App = () => {
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={endpoint} config={{ commitment: 'confirmed', wsEndpoint: endpoint }}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>

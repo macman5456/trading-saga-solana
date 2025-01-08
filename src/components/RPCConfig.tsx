@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Connection } from "@solana/web3.js";
+import { Connection, Commitment } from "@solana/web3.js";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -18,12 +18,12 @@ interface RPCConfigProps {
 
 const DEFAULT_RPC_ENDPOINTS = [
   {
-    name: "Mainnet Beta",
-    url: "https://api.mainnet-beta.solana.com",
-  },
-  {
     name: "GenesysGo",
     url: "https://ssc-dao.genesysgo.net",
+  },
+  {
+    name: "Mainnet Beta",
+    url: "https://api.mainnet-beta.solana.com",
   },
   {
     name: "Custom",
@@ -45,7 +45,15 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(url);
+      const connection = new Connection(url, {
+        commitment: 'confirmed' as Commitment,
+        confirmTransactionInitialTimeout: 60000,
+        disableRetryOnRateLimit: false,
+        httpHeaders: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
       const version = await connection.getVersion();
       const endTime = performance.now();
       
@@ -65,11 +73,16 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       
       let errorMessage = "Failed to connect to RPC endpoint.";
       if (error.message.includes("403")) {
-        errorMessage = "Access denied. Please try a different endpoint.";
+        errorMessage = "Access denied. Switching to GenesysGo endpoint...";
+        // Automatically switch to GenesysGo if mainnet fails
+        const genesysGoUrl = "https://ssc-dao.genesysgo.net";
+        setSelectedEndpoint(genesysGoUrl);
+        checkConnection(genesysGoUrl);
+        return;
       } else if (error.message.includes("timeout")) {
-        errorMessage = "Connection timed out. Please try a different endpoint.";
+        errorMessage = "Connection timed out. Please try again.";
       } else if (error.message.includes("429")) {
-        errorMessage = "Rate limit exceeded. Please try a different endpoint.";
+        errorMessage = "Rate limit exceeded. Switching to backup endpoint...";
       }
       
       toast({
