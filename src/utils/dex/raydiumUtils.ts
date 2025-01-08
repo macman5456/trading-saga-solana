@@ -1,6 +1,6 @@
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { Liquidity, LiquidityPoolKeys, Token } from '@raydium-io/raydium-sdk';
-import { JupiterProvider, TOKEN_LIST_URL } from '@jup-ag/core';
+import { Jupiter } from '@jup-ag/core';
 
 export async function findRaydiumPool(
   connection: Connection,
@@ -10,9 +10,15 @@ export async function findRaydiumPool(
     console.log("Finding Raydium pool for token:", tokenMint);
     const tokenMintPubkey = new PublicKey(tokenMint);
     
-    // This would be replaced with actual pool lookup using Raydium SDK
-    // For now returning null as placeholder
-    return null;
+    // Implement actual pool lookup using Raydium SDK
+    const pools = await Liquidity.fetchAllPoolKeys(connection);
+    const pool = pools.find(pool => 
+      pool.baseMint.equals(tokenMintPubkey) || 
+      pool.quoteMint.equals(tokenMintPubkey)
+    );
+    
+    console.log("Found pool:", pool ? "yes" : "no");
+    return pool || null;
   } catch (error) {
     console.error("Error finding Raydium pool:", error);
     return null;
@@ -27,19 +33,32 @@ export async function createRaydiumSwapTransaction(
 ): Promise<Transaction | null> {
   try {
     console.log("Creating Raydium swap transaction");
-    console.log("Token mint:", tokenMint);
-    console.log("Amount in:", amountIn);
-
-    // Create a new transaction
-    const transaction = new Transaction();
+    const pool = await findRaydiumPool(connection, tokenMint);
     
-    // Get latest blockhash
+    if (!pool) {
+      console.error("No pool found for token");
+      return null;
+    }
+
+    // Create swap instruction using Raydium SDK
+    const swapInstruction = await Liquidity.makeSwapInstruction({
+      poolKeys: pool,
+      userKeys: {
+        tokenAccountIn: walletPubkey,
+        tokenAccountOut: walletPubkey,
+        owner: walletPubkey
+      },
+      amountIn,
+      amountOut: 0, // Min amount out
+      fixedSide: 'in'
+    });
+
+    const transaction = new Transaction();
+    transaction.add(swapInstruction);
+    
     const { blockhash } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = walletPubkey;
-
-    // Here we would add the actual swap instructions using Raydium SDK
-    // This is a placeholder for now
     
     return transaction;
   } catch (error) {
@@ -53,11 +72,68 @@ export async function getTokenPrice(
   tokenMint: string
 ): Promise<number | null> {
   try {
-    // This would fetch the actual token price from Raydium or Jupiter
-    // For now returning a placeholder price
-    return 1.0;
+    const pool = await findRaydiumPool(connection, tokenMint);
+    if (!pool) return null;
+
+    // Fetch pool state and calculate price
+    const poolState = await Liquidity.fetchPoolInfo({
+      connection,
+      poolKeys: pool
+    });
+
+    // Calculate price based on pool reserves
+    if (poolState.baseReserve && poolState.quoteReserve) {
+      const price = poolState.quoteReserve.toNumber() / poolState.baseReserve.toNumber();
+      console.log("Calculated token price:", price);
+      return price;
+    }
+
+    return null;
   } catch (error) {
     console.error("Error getting token price:", error);
+    return null;
+  }
+}
+
+export async function setupJupiterClient(
+  connection: Connection
+): Promise<Jupiter | null> {
+  try {
+    const jupiter = await Jupiter.load({
+      connection,
+      cluster: 'mainnet-beta',
+      user: null // Will be set during swap
+    });
+    
+    return jupiter;
+  } catch (error) {
+    console.error("Error setting up Jupiter client:", error);
+    return null;
+  }
+}
+
+export async function getJupiterPrice(
+  jupiter: Jupiter,
+  inputMint: string,
+  outputMint: string,
+  amount: number
+): Promise<number | null> {
+  try {
+    const routes = await jupiter.computeRoutes({
+      inputMint: new PublicKey(inputMint),
+      outputMint: new PublicKey(outputMint),
+      amount,
+      slippageBps: 50, // 0.5% slippage
+    });
+
+    if (routes.routesInfos.length > 0) {
+      const bestRoute = routes.routesInfos[0];
+      return bestRoute.outAmount / amount;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error getting Jupiter price:", error);
     return null;
   }
 }
