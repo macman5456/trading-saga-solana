@@ -1,11 +1,98 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import TokenSelector from "@/components/TokenSelector";
+import DexSelector from "@/components/DexSelector";
+import AddressCounter from "@/components/AddressCounter";
+import JitoTip from "@/components/JitoTip";
+import { X } from "lucide-react";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold">Batch Transactions</h1>
+          <p className="text-muted-foreground">
+            Automatically create new wallet addresses, complete the buy transaction,
+            transfer to the main wallet, and close the account. Boost the number of
+            independent wallet purchases of designated tokens at a very low cost,
+            helping your project's data stand out in the market.
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          <TokenSelector />
+
+          <div className="grid grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Private Key</label>
+              <Input type="password" placeholder="Enter Private Key" />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <label className="text-sm font-medium">Address</label>
+              <Input disabled placeholder="Address will appear here" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+                </label>
+                <Input disabled placeholder="0.0" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1">
+                  TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+                </label>
+                <Input disabled placeholder="0.0" />
+              </div>
+            </div>
+          </div>
+
+          <DexSelector />
+
+          <div className="grid grid-cols-2 gap-4">
+            <AddressCounter />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Buy Amount(SOL)</label>
+              <div className="relative">
+                <Input placeholder="0.00001" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  SOL
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <JitoTip />
+
+          <Alert className="bg-orange-50 border-orange-200">
+            <AlertDescription className="flex items-center justify-between text-orange-800">
+              <span>
+                The cost for each new address buy is primarily the Jito fee. Please
+                adjust in real-time based on network congestion. Do not refresh
+                after the feature is enabled, as this will interrupt the service.
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-orange-800 hover:text-orange-900"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex flex-col items-center gap-2">
+            <Button className="bg-primary hover:bg-primary/90 text-white w-40">
+              Start
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              The lowest service fee in the market, with each new address buy
+              costing only 0.00009 SOL.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
