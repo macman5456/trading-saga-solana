@@ -9,6 +9,7 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { useState, useMemo } from "react";
+import { Commitment } from "@solana/web3.js";
 import RPCConfig from "./components/RPCConfig";
 
 // Import wallet adapter CSS
@@ -26,7 +27,7 @@ const App = () => {
 
   // Configure connection settings
   const connectionConfig = {
-    commitment: 'confirmed',
+    commitment: 'confirmed' as Commitment,
     disableRetryOnRateLimit: false,
     confirmTransactionInitialTimeout: 60000
   };

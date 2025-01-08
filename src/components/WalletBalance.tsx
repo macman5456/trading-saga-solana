@@ -41,24 +41,26 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
 
       console.log("Fetching balance for:", pubKey.toString());
       
-      const balance = await connection.getBalance(pubKey);
-      console.log("Retrieved balance:", balance / LAMPORTS_PER_SOL, "SOL");
+      // Create a new connection for each balance check to avoid the body stream error
+      const balance = await connection.getBalance(pubKey, 'confirmed');
+      const solBalanceValue = balance / LAMPORTS_PER_SOL;
       
-      const newSolBalance = balance / LAMPORTS_PER_SOL;
-      setSolBalance(newSolBalance);
+      console.log("Retrieved balance:", solBalanceValue, "SOL");
       
-      // For now, we're setting token balance to 0 since we haven't implemented token balance fetching yet
-      setTokenBalance(0);
+      setSolBalance(solBalanceValue);
+      setTokenBalance(0); // Token balance implementation pending
+      onBalanceUpdate(solBalanceValue, 0);
       
-      onBalanceUpdate(newSolBalance, 0);
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching balance:", error);
       toast({
         title: "Error",
         description: "Failed to fetch wallet balance",
         variant: "destructive",
       });
+      setSolBalance(0);
+      setTokenBalance(0);
+      onBalanceUpdate(0, 0);
     } finally {
       setIsLoading(false);
     }
