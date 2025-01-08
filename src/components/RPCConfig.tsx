@@ -20,7 +20,7 @@ interface RPCConfigProps {
 const DEFAULT_RPC_ENDPOINTS = [
   {
     name: "Helius RPC",
-    url: "https://rpc-devnet.helius.xyz/?api-key=48711179-c2d9-4f84-9d39-8e4c6c9fbf64"
+    url: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
   }
 ];
 

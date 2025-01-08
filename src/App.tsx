@@ -17,11 +17,11 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-const DEFAULT_RPC = "https://rpc-devnet.helius.xyz/?api-key=48711179-c2d9-4f84-9d39-8e4c6c9fbf64";
+const DEFAULT_RPC = "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
-  const network = WalletAdapterNetwork.Devnet; // Changed to Devnet
+  const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   // Configure connection settings with proper typing
