@@ -9,7 +9,7 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { useState, useMemo } from "react";
-import { Commitment } from "@solana/web3.js";
+import { Commitment, clusterApiUrl } from "@solana/web3.js";
 import RPCConfig from "./components/RPCConfig";
 
 // Import wallet adapter CSS
@@ -17,7 +17,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-const DEFAULT_RPC = "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com";
+const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
@@ -27,7 +27,7 @@ const App = () => {
   // Configure connection settings with proper typing
   const connectionConfig = {
     commitment: 'confirmed' as Commitment,
-    confirmTransactionInitialTimeout: 60000
+    confirmTransactionInitialTimeout: 120000, // Increase timeout to 2 minutes
   };
 
   return (

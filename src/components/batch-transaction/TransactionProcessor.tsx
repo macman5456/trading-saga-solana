@@ -18,6 +18,9 @@ interface TransactionProcessorProps {
   onProcessedCountChange: (count: number) => void;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
 const TransactionProcessor = ({
   privateKey,
   addressCount,
@@ -33,6 +36,60 @@ const TransactionProcessor = ({
   
   const { connection } = useConnection();
   const { toast } = useToast();
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const processTransaction = async (
+    sourceWallet: Keypair,
+    newWallet: Keypair,
+    transferAmount: number,
+    retryCount = 0
+  ): Promise<string> => {
+    try {
+      console.log(`Processing transaction attempt ${retryCount + 1}`);
+      
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
+
+      const transaction = buildTransferTransaction(
+        sourceWallet,
+        newWallet,
+        transferAmount,
+        jitoTip,
+        blockhash
+      );
+
+      transaction.sign(sourceWallet, newWallet);
+      
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: true,
+        maxRetries: 3,
+        preflightCommitment: 'confirmed',
+      });
+
+      console.log("Transaction sent:", signature);
+
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
+
+      return signature;
+    } catch (error: any) {
+      console.error(`Transaction attempt ${retryCount + 1} failed:`, error);
+      
+      if (retryCount < MAX_RETRIES) {
+        await sleep(RETRY_DELAY);
+        return processTransaction(sourceWallet, newWallet, transferAmount, retryCount + 1);
+      }
+      throw error;
+    }
+  };
 
   const handleStartTransaction = async () => {
     try {
@@ -56,7 +113,6 @@ const TransactionProcessor = ({
         throw new Error("Please select a token first");
       }
 
-      // Calculate required balance and validate
       const { totalRequired } = await calculateRequiredBalance(connection, addressCount, buyAmount, jitoTip);
       await validateBalance(connection, sourceWallet.publicKey, totalRequired);
 
@@ -72,37 +128,8 @@ const TransactionProcessor = ({
 
           const transferAmount = buyAmount * LAMPORTS_PER_SOL;
           console.log("Transfer amount:", transferAmount / LAMPORTS_PER_SOL, "SOL");
-          
-          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-          console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
-          const transaction = buildTransferTransaction(
-            sourceWallet,
-            newWallet,
-            transferAmount,
-            jitoTip,
-            blockhash
-          );
-
-          // Sign transaction with both wallets since we're creating an account
-          transaction.sign(sourceWallet, newWallet);
-          
-          const signature = await connection.sendRawTransaction(transaction.serialize(), {
-            skipPreflight: true,
-            preflightCommitment: 'confirmed',
-          });
-
-          console.log("Transaction sent:", signature);
-
-          const confirmation = await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight,
-          }, 'confirmed');
-
-          if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${confirmation.value.err}`);
-          }
+          await processTransaction(sourceWallet, newWallet, transferAmount);
 
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
