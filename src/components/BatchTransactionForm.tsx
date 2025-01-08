@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { validatePrivateKey, createAndFundWallet } from "@/utils/walletOperations";
+import { validatePrivateKey, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 import { useToast } from "@/hooks/use-toast";
 import BatchTransactionHeader from "./batch-transaction/BatchTransactionHeader";
 import WalletInputSection from "./batch-transaction/WalletInputSection";
 import TransactionControls from "./batch-transaction/TransactionControls";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { findLiquidityPool } from "@/utils/connectionUtils";
 
 interface WalletInfo {
   publicKey: string;
@@ -17,9 +18,13 @@ interface WalletInfo {
 const BatchTransactionForm = ({
   onWalletsGenerated,
   onSuccessCountChange,
+  selectedToken,
+  selectedDex,
 }: {
   onWalletsGenerated: (wallets: WalletInfo[]) => void;
   onSuccessCountChange: (count: number) => void;
+  selectedToken: string;
+  selectedDex: string;
 }) => {
   const [privateKey, setPrivateKey] = useState("");
   const [publicKey, setPublicKey] = useState("");
@@ -30,6 +35,8 @@ const BatchTransactionForm = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [processedWallets, setProcessedWallets] = useState(0);
 
   const { connection } = useConnection();
   const { toast } = useToast();
@@ -38,6 +45,8 @@ const BatchTransactionForm = ({
     try {
       console.log("Starting transaction process...");
       setIsProcessing(true);
+      setCurrentStep(0);
+      setProcessedWallets(0);
 
       // Validate private key
       const sourceWallet = validatePrivateKey(privateKey);
@@ -51,9 +60,22 @@ const BatchTransactionForm = ({
         return;
       }
 
-      console.log("Source wallet public key:", sourceWallet.publicKey.toString());
+      // Validate token selection
+      if (!selectedToken) {
+        toast({
+          title: "Error",
+          description: "Please select a token first",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Create and fund new wallets
+      console.log("Source wallet public key:", sourceWallet.publicKey.toString());
+      console.log("Selected token:", selectedToken);
+      console.log("Selected DEX:", selectedDex);
+
+      // Step 1: Create and fund new wallets
+      setCurrentStep(1);
       const generatedWallets: WalletInfo[] = [];
       let successCount = 0;
 
@@ -76,12 +98,32 @@ const BatchTransactionForm = ({
             tokenBalance: 0,
           });
 
+          // Step 2: Execute token purchase for each wallet
+          setCurrentStep(2);
+          console.log(`Executing token purchase for wallet ${i + 1}`);
+          
+          // Check liquidity pool
+          const poolExists = await findLiquidityPool(connection.rpcEndpoint, selectedToken);
+          if (!poolExists) {
+            throw new Error("Liquidity pool not found for selected token");
+          }
+
+          // Step 3: Transfer funds back to main wallet
+          setCurrentStep(3);
+          console.log(`Transferring remaining funds back to main wallet for wallet ${i + 1}`);
+          await closeWallet(
+            connection,
+            newWallet,
+            sourceWallet.publicKey
+          );
+
           successCount++;
+          setProcessedWallets(i + 1);
         } catch (error: any) {
-          console.error(`Error creating wallet ${i + 1}:`, error);
+          console.error(`Error processing wallet ${i + 1}:`, error);
           toast({
             title: "Error",
-            description: `Failed to create wallet ${i + 1}: ${error.message}`,
+            description: `Failed to process wallet ${i + 1}: ${error.message}`,
             variant: "destructive",
           });
           break;
@@ -89,12 +131,12 @@ const BatchTransactionForm = ({
       }
 
       if (successCount > 0) {
-        console.log(`Successfully created ${successCount} wallets`);
+        console.log(`Successfully processed ${successCount} wallets`);
         onWalletsGenerated(generatedWallets);
         onSuccessCountChange(successCount);
         toast({
           title: "Success",
-          description: `Successfully created ${successCount} wallets`,
+          description: `Successfully processed ${successCount} wallets`,
         });
       }
     } catch (error: any) {
@@ -106,6 +148,7 @@ const BatchTransactionForm = ({
       });
     } finally {
       setIsProcessing(false);
+      setCurrentStep(0);
     }
   };
 
@@ -127,10 +170,13 @@ const BatchTransactionForm = ({
         addressCount={addressCount}
         buyAmount={buyAmount}
         isProcessing={isProcessing}
-        disabled={!privateKey || isLoadingBalance}
+        disabled={!privateKey || isLoadingBalance || !selectedToken}
         onAddressCountChange={setAddressCount}
         onBuyAmountChange={setBuyAmount}
         onStartTransaction={handleStartTransaction}
+        currentStep={currentStep}
+        processedWallets={processedWallets}
+        totalWallets={addressCount}
       />
     </div>
   );

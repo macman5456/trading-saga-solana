@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import AddressCounter from "../AddressCounter";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 
 interface TransactionControlsProps {
   addressCount: number;
@@ -11,6 +12,9 @@ interface TransactionControlsProps {
   onAddressCountChange: (count: number) => void;
   onBuyAmountChange: (amount: string) => void;
   onStartTransaction: () => void;
+  currentStep: number;
+  processedWallets: number;
+  totalWallets: number;
 }
 
 const TransactionControls = ({
@@ -21,9 +25,27 @@ const TransactionControls = ({
   onAddressCountChange,
   onBuyAmountChange,
   onStartTransaction,
+  currentStep,
+  processedWallets,
+  totalWallets,
 }: TransactionControlsProps) => {
+  const getStepMessage = () => {
+    switch (currentStep) {
+      case 1:
+        return "Creating and funding wallets...";
+      case 2:
+        return "Executing token purchase...";
+      case 3:
+        return "Transferring funds back...";
+      default:
+        return "Ready to start";
+    }
+  };
+
+  const progress = isProcessing ? ((processedWallets / totalWallets) * 100) : 0;
+
   return (
-    <>
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <AddressCounter onCountChange={onAddressCountChange} />
         <div className="space-y-2">
@@ -44,6 +66,15 @@ const TransactionControls = ({
         </div>
       </div>
 
+      {isProcessing && (
+        <div className="space-y-2">
+          <Progress value={progress} className="w-full" />
+          <p className="text-sm text-center text-muted-foreground">
+            {getStepMessage()} ({processedWallets}/{totalWallets})
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col items-center gap-2">
         <Button
           className="bg-primary hover:bg-primary/90 text-white w-40"
@@ -57,7 +88,7 @@ const TransactionControls = ({
           only 0.00009 SOL.
         </p>
       </div>
-    </>
+    </div>
   );
 };
 
