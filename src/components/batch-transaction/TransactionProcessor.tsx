@@ -61,6 +61,10 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
+          // Get rent exemption amount
+          const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+          console.log("Rent exemption required:", rentExemption / 1e9, "SOL");
+
           const signature = await processTransaction(
             connection,
             sourceWallet,
