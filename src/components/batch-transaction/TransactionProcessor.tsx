@@ -84,8 +84,9 @@ const TransactionProcessor = ({
             blockhash
           );
 
-          // Sign and send transaction
-          transaction.sign(sourceWallet);
+          // Sign transaction with both wallets since we're creating an account
+          transaction.sign(sourceWallet, newWallet);
+          
           const signature = await connection.sendRawTransaction(transaction.serialize(), {
             skipPreflight: true,
             preflightCommitment: 'confirmed',

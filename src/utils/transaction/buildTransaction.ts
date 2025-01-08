@@ -16,14 +16,16 @@ export const buildTransferTransaction = (
 
   const transaction = new Transaction();
   
-  // Main SOL transfer instruction
-  const transferInstruction = SystemProgram.transfer({
+  // Create account instruction
+  const createAccountInstruction = SystemProgram.createAccount({
     fromPubkey: sourceWallet.publicKey,
-    toPubkey: newWallet.publicKey,
+    newAccountPubkey: newWallet.publicKey,
     lamports: transferAmount,
+    space: 0,
+    programId: SystemProgram.programId,
   });
 
-  transaction.add(transferInstruction);
+  transaction.add(createAccountInstruction);
 
   // Add Jito tip as a separate instruction if specified
   if (jitoTip > 0) {
