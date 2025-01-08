@@ -6,15 +6,19 @@ import DexSelector from "@/components/DexSelector";
 import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
-import { useState } from "react";
-import { Keypair } from "@solana/web3.js";
+import { useState, useEffect } from "react";
+import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
   const [publicKey, setPublicKey] = useState("");
+  const [solBalance, setSolBalance] = useState<number>(0);
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
+
+  const connection = new Connection("https://api.mainnet-beta.solana.com");
 
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -22,15 +26,18 @@ const Index = () => {
     
     try {
       if (value) {
-        // Convert private key to Uint8Array and create keypair
         const decodedKey = bs58.decode(value);
         const keypair = Keypair.fromSecretKey(decodedKey);
         setPublicKey(keypair.publicKey.toString());
       } else {
         setPublicKey("");
+        setSolBalance(0);
+        setTokenBalance(0);
       }
     } catch (error) {
       setPublicKey("");
+      setSolBalance(0);
+      setTokenBalance(0);
       if (value) {
         toast({
           title: "Invalid Private Key",
@@ -40,6 +47,27 @@ const Index = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const fetchBalances = async () => {
+      if (publicKey) {
+        try {
+          const solBalance = await connection.getBalance(new PublicKey(publicKey));
+          setSolBalance(solBalance / LAMPORTS_PER_SOL);
+          
+          // For now, we'll reset token balance when address changes
+          // Token balance will be updated when a specific token is selected
+          setTokenBalance(0);
+        } catch (error) {
+          console.error("Error fetching balances:", error);
+          setSolBalance(0);
+          setTokenBalance(0);
+        }
+      }
+    };
+
+    fetchBalances();
+  }, [publicKey]);
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -80,13 +108,13 @@ const Index = () => {
                 <label className="text-sm font-medium flex items-center gap-1">
                   SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
                 </label>
-                <Input disabled placeholder="0.0" />
+                <Input disabled value={solBalance.toFixed(4)} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-1">
                   TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
                 </label>
-                <Input disabled placeholder="0.0" />
+                <Input disabled value={tokenBalance.toFixed(4)} />
               </div>
             </div>
           </div>
