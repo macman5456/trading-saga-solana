@@ -1,17 +1,13 @@
 import { useState, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { 
-  Keypair, 
-  Transaction, 
-  SystemProgram, 
-  LAMPORTS_PER_SOL,
-  PublicKey 
-} from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
-import { createNewWallet } from "@/utils/transaction/walletCreation";
 import { validateWalletBalance } from "@/utils/transaction/balanceCheck";
+import { buildFundingTransaction } from "@/utils/transaction/transactionBuilder";
+import { simulateTransaction } from "@/utils/transaction/simulationUtils";
+import { TransactionConfig, WalletCreationResult } from "@/utils/transaction/types";
 
 interface TransactionProcessorProps {
   privateKey: string;
@@ -19,7 +15,7 @@ interface TransactionProcessorProps {
   buyAmount: number;
   jitoTip: number;
   selectedToken: string;
-  onSuccess: (wallets: any[]) => void;
+  onSuccess: (wallets: WalletCreationResult[]) => void;
   onProcessedCountChange: (count: number) => void;
 }
 
@@ -38,73 +34,6 @@ const TransactionProcessor = ({
   
   const { connection } = useConnection();
   const { toast } = useToast();
-
-  const simulateTransaction = async (transaction: Transaction, sourceWallet: Keypair) => {
-    try {
-      console.log("Simulating transaction with details:", {
-        sourceWallet: sourceWallet.publicKey.toString(),
-        transactionSize: transaction.serialize().length,
-      });
-
-      // Get the minimum rent exemption
-      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-      console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
-
-      // Add rent exemption to transaction if not already included
-      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
-
-      // Simulate the transaction
-      const simulation = await connection.simulateTransaction(transaction);
-      
-      if (simulation.value.err) {
-        console.error("Simulation error:", simulation.value.err);
-        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-      }
-
-      console.log("Simulation successful:", {
-        unitsConsumed: simulation.value.unitsConsumed,
-        logs: simulation.value.logs
-      });
-
-      return true;
-    } catch (error: any) {
-      console.error("Simulation error:", error);
-      throw error;
-    }
-  };
-
-  const createAndSimulateTransaction = async (
-    sourceWallet: Keypair,
-    destinationPubkey: PublicKey,
-    amount: number,
-    rentExemption: number
-  ) => {
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
-    
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: sourceWallet.publicKey,
-        toPubkey: destinationPubkey,
-        lamports: amount * LAMPORTS_PER_SOL + rentExemption,
-      })
-    );
-
-    if (jitoTip > 0) {
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: sourceWallet.publicKey,
-          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-          lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
-        })
-      );
-    }
-
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = sourceWallet.publicKey;
-
-    return transaction;
-  };
 
   const handleStartTransaction = async () => {
     try {
@@ -128,25 +57,18 @@ const TransactionProcessor = ({
         throw new Error("Please select a token first");
       }
 
-      // Get rent exemption amount
-      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-      console.log("Rent exemption per account:", rentExemption / LAMPORTS_PER_SOL, "SOL");
-
-      // Calculate total required amount including rent
-      const totalRequired = addressCount * (
-        (buyAmount * LAMPORTS_PER_SOL) + 
-        rentExemption + 
-        (jitoTip * LAMPORTS_PER_SOL) +
-        5000 // Additional buffer for transaction fees
-      );
-
-      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-      if (sourceBalance < totalRequired) {
-        throw new Error(`Insufficient funds. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
-      }
+      // Validate wallet balance
+      await validateWalletBalance(connection, sourceWallet, addressCount, buyAmount, jitoTip);
 
       setCurrentStep(1);
-      const generatedWallets = [];
+      const generatedWallets: WalletCreationResult[] = [];
+
+      const config: TransactionConfig = {
+        sourceWallet,
+        amount: buyAmount,
+        jitoTip,
+        connection,
+      };
 
       for (let i = 0; i < addressCount; i++) {
         try {
@@ -156,18 +78,15 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("New wallet public key:", newWallet.publicKey.toString());
 
-          // Create and simulate transaction
-          const transaction = await createAndSimulateTransaction(
-            sourceWallet,
+          // Build and simulate transaction
+          const { transaction, blockhash } = await buildFundingTransaction(
             newWallet.publicKey,
-            buyAmount,
-            rentExemption
+            config
           );
 
-          // Simulate before sending
-          await simulateTransaction(transaction, sourceWallet);
+          await simulateTransaction(transaction, connection, sourceWallet);
 
-          // Send transaction
+          // Sign and send transaction
           transaction.sign(sourceWallet);
           const signature = await connection.sendRawTransaction(transaction.serialize(), {
             skipPreflight: false,
@@ -177,7 +96,12 @@ const TransactionProcessor = ({
           console.log("Transaction sent:", signature);
 
           // Wait for confirmation
-          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+          const confirmation = await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight: await connection.getBlockHeight(),
+          }, 'confirmed');
+
           if (confirmation.value.err) {
             throw new Error(`Transaction failed: ${confirmation.value.err}`);
           }
