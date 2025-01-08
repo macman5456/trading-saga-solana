@@ -12,6 +12,7 @@ interface TransactionControlsProps {
   onAddressCountChange: (count: number) => void;
   onBuyAmountChange: (amount: string) => void;
   onStartTransaction: () => void;
+  onGenerateWallets: () => void;
   currentStep: number;
   processedWallets: number;
   totalWallets: number;
@@ -25,6 +26,7 @@ const TransactionControls = ({
   onAddressCountChange,
   onBuyAmountChange,
   onStartTransaction,
+  onGenerateWallets,
   currentStep,
   processedWallets,
   totalWallets,
@@ -76,13 +78,22 @@ const TransactionControls = ({
       )}
 
       <div className="flex flex-col items-center gap-2">
-        <Button
-          className="bg-primary hover:bg-primary/90 text-white w-40"
-          onClick={onStartTransaction}
-          disabled={isProcessing || disabled}
-        >
-          {isProcessing ? "Processing..." : "Start"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            className="bg-secondary hover:bg-secondary/90 text-white"
+            onClick={onGenerateWallets}
+            disabled={isProcessing || disabled}
+          >
+            Generate Wallets
+          </Button>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={onStartTransaction}
+            disabled={isProcessing || disabled}
+          >
+            Start Trading
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           The lowest service fee in the market, with each new address buy costing
           only 0.00009 SOL.

@@ -11,9 +11,7 @@ export async function findRaydiumPool(
     const tokenMintPubkey = new PublicKey(tokenMint);
     
     // Get all Raydium pools
-    const allPools = await Liquidity.fetchAllPoolKeys(connection, {
-      ownerInfo: false
-    });
+    const allPools = await Liquidity.fetchAllPoolKeys(connection);
     
     // Find pool containing the token
     const pool = allPools.find(pool => 
@@ -102,7 +100,7 @@ export async function setupJupiterClient(
     const jupiter = await Jupiter.load({
       connection,
       cluster: 'mainnet-beta',
-      userPublicKey: null // Will be set during swap
+      user: null // Will be set during swap
     });
     
     return jupiter;

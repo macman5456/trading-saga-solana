@@ -31,9 +31,10 @@ const BatchTransactionForm = ({
   const [tokenBalance, setTokenBalance] = useState("0");
   const [addressCount, setAddressCount] = useState(1);
   const [buyAmount, setBuyAmount] = useState("0.00001");
-  const [jitoTip, setJitoTip] = useState("0.00015"); // Default to Ultra-High
+  const [jitoTip, setJitoTip] = useState("0.00015");
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (privateKey) {
@@ -50,6 +51,7 @@ const BatchTransactionForm = ({
 
   const {
     handleStartTransaction,
+    handleGenerateWallets,
     isProcessing,
     currentStep,
     processedWallets,
@@ -87,6 +89,7 @@ const BatchTransactionForm = ({
         onAddressCountChange={setAddressCount}
         onBuyAmountChange={setBuyAmount}
         onStartTransaction={handleStartTransaction}
+        onGenerateWallets={handleGenerateWallets}
         currentStep={currentStep}
         processedWallets={processedWallets}
         totalWallets={addressCount}
