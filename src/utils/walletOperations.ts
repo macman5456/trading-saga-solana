@@ -4,6 +4,8 @@ import bs58 from "bs58";
 // Updated rent exemption calculation (approximately 0.00204928 SOL)
 const RENT_EXEMPTION = 2039280;
 const TRANSACTION_FEE = 5000; // 0.000005 SOL
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
 
 export const validatePrivateKey = (privateKey: string): Keypair | null => {
   try {
@@ -43,91 +45,96 @@ export const checkWalletBalance = async (
   }
 };
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const createAndFundWallet = async (
   connection: Connection,
   amount: number,
   jitoTip: number,
   fromWallet: Keypair
 ): Promise<Keypair> => {
-  try {
-    console.log("Starting wallet creation with private key wallet:", fromWallet.publicKey.toString());
-    
-    // Calculate total required amount including rent exemption and fees
-    const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-    const jitoTipInLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalRequired = amountInLamports + RENT_EXEMPTION + jitoTipInLamports + TRANSACTION_FEE;
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      console.log(`Attempt ${attempt + 1} of ${MAX_RETRIES} to create and fund wallet`);
+      
+      // Calculate total required amount including rent exemption and fees
+      const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
+      const jitoTipInLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
+      const totalRequired = amountInLamports + RENT_EXEMPTION + jitoTipInLamports + TRANSACTION_FEE;
 
-    // Check source wallet balance
-    const sourceBalance = await checkWalletBalance(connection, fromWallet);
-    console.log("\nTransaction Details:");
-    console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
-    console.log("Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
-    console.log("\nBreakdown:");
-    console.log("- Transfer amount:", amountInLamports / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Rent exemption:", RENT_EXEMPTION / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Jito tip:", jitoTipInLamports / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Transaction fee:", TRANSACTION_FEE / LAMPORTS_PER_SOL, "SOL");
-    
-    if (sourceBalance < totalRequired) {
-      const errorMsg = `Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent and fees), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`;
-      console.error(errorMsg);
-      throw new Error(errorMsg);
-    }
+      // Check source wallet balance
+      const sourceBalance = await checkWalletBalance(connection, fromWallet);
+      console.log("\nTransaction Details:");
+      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+      console.log("Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
+      
+      if (sourceBalance < totalRequired) {
+        throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+      }
 
-    const newWallet = Keypair.generate();
-    console.log("Generated new wallet:", newWallet.publicKey.toString());
+      const newWallet = Keypair.generate();
+      console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-    // Create transaction to fund new wallet with rent exemption included
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: fromWallet.publicKey,
-        toPubkey: newWallet.publicKey,
-        lamports: amountInLamports + RENT_EXEMPTION,
-      })
-    );
+      // Get a fresh blockhash for each attempt
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      console.log("Got fresh blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
-    // Add Jito tip if specified
-    if (jitoTip > 0) {
-      console.log("Adding Jito tip transaction");
-      transaction.add(
+      const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: fromWallet.publicKey,
-          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-          lamports: jitoTipInLamports,
+          toPubkey: newWallet.publicKey,
+          lamports: amountInLamports + RENT_EXEMPTION,
         })
       );
+
+      if (jitoTip > 0) {
+        transaction.add(
+          SystemProgram.transfer({
+            fromPubkey: fromWallet.publicKey,
+            toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+            lamports: jitoTipInLamports,
+          })
+        );
+      }
+
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromWallet.publicKey;
+      transaction.sign(fromWallet);
+
+      console.log("Sending transaction...");
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      console.log("Transaction sent:", signature);
+      
+      const confirmation = await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
+
+      console.log("Transaction confirmed successfully");
+      return newWallet;
+    } catch (error: any) {
+      console.error(`Attempt ${attempt + 1} failed:`, error);
+      lastError = error;
+      
+      if (attempt < MAX_RETRIES - 1) {
+        console.log(`Waiting ${RETRY_DELAY}ms before next attempt...`);
+        await sleep(RETRY_DELAY);
+      }
     }
-
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = fromWallet.publicKey;
-
-    transaction.sign(fromWallet);
-    console.log("Sending transaction...");
-    
-    const signature = await connection.sendRawTransaction(transaction.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: 'confirmed',
-    });
-
-    console.log("Transaction sent:", signature);
-    
-    const confirmation = await connection.confirmTransaction({
-      signature,
-      blockhash,
-      lastValidBlockHeight: await connection.getBlockHeight(),
-    }, 'confirmed');
-
-    if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${confirmation.value.err}`);
-    }
-
-    console.log("Transaction confirmed");
-    return newWallet;
-  } catch (error) {
-    console.error("Error in createAndFundWallet:", error);
-    throw error;
   }
+
+  throw new Error(`Failed to create and fund wallet after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`);
 };
 
 export const closeWallet = async (
