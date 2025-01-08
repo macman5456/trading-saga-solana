@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import PrivateKeyInput from "./form/PrivateKeyInput";
 import AddressDisplay from "./form/AddressDisplay";
 import BalanceDisplay from "./form/BalanceDisplay";
-import WalletFileUpload from "./form/WalletFileUpload";
+import WalletList from "./WalletList";
 
 interface WalletInfo {
   publicKey: string;
@@ -174,15 +174,6 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
     }
   };
 
-  const handleWalletsImported = (importedWallets: { publicKey: string; privateKey: string }[]) => {
-    const walletsWithBalance = importedWallets.map(wallet => ({
-      ...wallet,
-      solBalance: 0,
-      tokenBalance: 0
-    }));
-    onWalletsGenerated(walletsWithBalance);
-  };
-
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -192,8 +183,6 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
           transfer to the main wallet, and close the account.
         </p>
       </div>
-
-      <WalletFileUpload onWalletsImported={handleWalletsImported} />
 
       <TokenSelector onTokenSelect={setSelectedToken} />
 
@@ -254,6 +243,11 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
           only 0.00009 SOL.
         </p>
       </div>
+
+      <WalletList 
+        wallets={[]} 
+        onWalletsImported={onWalletsGenerated}
+      />
     </div>
   );
 };
