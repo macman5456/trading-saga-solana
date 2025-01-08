@@ -23,9 +23,9 @@ const Index = () => {
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Using devnet connection
+  // Using Mainnet connection
   const connection = new Connection(
-    "https://api.devnet.solana.com",
+    "https://api.mainnet-beta.solana.com",
     "confirmed"
   );
 
@@ -154,7 +154,7 @@ const Index = () => {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold">Batch Transactions (Devnet)</h1>
+          <h1 className="text-2xl font-semibold">Batch Transactions (Mainnet)</h1>
           <p className="text-muted-foreground">
             Automatically create new wallet addresses, complete the buy transaction,
             transfer to the main wallet, and close the account. Boost the number of
@@ -163,80 +163,78 @@ const Index = () => {
           </p>
         </div>
 
-        <div className="space-y-6">
-          <TokenSelector onTokenSelect={setSelectedToken} />
+        <TokenSelector onTokenSelect={setSelectedToken} />
 
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Private Key</label>
-              <Input 
-                type="password" 
-                placeholder="Enter Private Key" 
-                value={privateKey}
-                onChange={handlePrivateKeyChange}
-              />
-            </div>
-            <div className="space-y-2 col-span-2">
-              <label className="text-sm font-medium">Address</label>
-              <Input 
-                disabled 
-                placeholder="Address will appear here" 
-                value={publicKey}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
-                </label>
-                <Input disabled value={solBalance.toFixed(4)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-1">
-                  TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
-                </label>
-                <Input disabled value={tokenBalance.toFixed(4)} />
-              </div>
-            </div>
+        <div className="grid grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Private Key</label>
+            <Input 
+              type="password" 
+              placeholder="Enter Private Key" 
+              value={privateKey}
+              onChange={handlePrivateKeyChange}
+            />
           </div>
-
-          <DexSelector selectedToken={selectedToken} />
-
+          <div className="space-y-2 col-span-2">
+            <label className="text-sm font-medium">Address</label>
+            <Input 
+              disabled 
+              placeholder="Address will appear here" 
+              value={publicKey}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <AddressCounter onCountChange={setAddressCount} />
             <div className="space-y-2">
-              <label className="text-sm font-medium">Buy Amount(SOL)</label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0.00001"
-                  value={buyAmount}
-                  onChange={(e) => setBuyAmount(e.target.value)}
-                  min="0.00001"
-                  step="0.00001"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  SOL
-                </span>
-              </div>
+              <label className="text-sm font-medium flex items-center gap-1">
+                SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+              </label>
+              <Input disabled value={solBalance.toFixed(4)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-1">
+                TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+              </label>
+              <Input disabled value={tokenBalance.toFixed(4)} />
             </div>
           </div>
+        </div>
 
-          <JitoTip onTipChange={setJitoTip} />
+        <DexSelector selectedToken={selectedToken} />
 
-          <div className="flex flex-col items-center gap-2 mt-6">
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white w-40"
-              onClick={handleBatchTransaction}
-              disabled={isProcessing || !privateKey}
-            >
-              {isProcessing ? "Processing..." : "Start"}
-            </Button>
-            <p className="text-sm text-muted-foreground">
-              The lowest service fee in the market, with each new address buy costing
-              only 0.00009 SOL.
-            </p>
+        <div className="grid grid-cols-2 gap-4">
+          <AddressCounter onCountChange={setAddressCount} />
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Buy Amount(SOL)</label>
+            <div className="relative">
+              <Input
+                type="number"
+                placeholder="0.00001"
+                value={buyAmount}
+                onChange={(e) => setBuyAmount(e.target.value)}
+                min="0.00001"
+                step="0.00001"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                SOL
+              </span>
+            </div>
           </div>
+        </div>
+
+        <JitoTip onTipChange={setJitoTip} />
+
+        <div className="flex flex-col items-center gap-2 mt-6">
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white w-40"
+            onClick={handleBatchTransaction}
+            disabled={isProcessing || !privateKey}
+          >
+            {isProcessing ? "Processing..." : "Start"}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            The lowest service fee in the market, with each new address buy costing
+            only 0.00009 SOL.
+          </p>
         </div>
       </div>
     </div>

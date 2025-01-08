@@ -39,6 +39,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
             setHasShownConnectedToast(true);
           }
 
+          // Always add SOL as the default token
           if (isSubscribed) {
             setTokens([{
               address: "SOL",
@@ -69,14 +70,18 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     return () => {
       isSubscribed = false;
     };
-  }, [connected, publicKey, connection, hasShownConnectedToast]);
+  }, [connected, publicKey, connection, hasShownConnectedToast, toast]);
 
   const handleCustomTokenAdd = () => {
     try {
       new PublicKey(customToken);
       
       if (!tokens.some(token => token.address === customToken)) {
-        setTokens(prev => [...prev, { address: customToken, symbol: `Custom (${customToken.slice(0, 4)}...)` }]);
+        const newToken = { 
+          address: customToken, 
+          symbol: `Custom (${customToken.slice(0, 4)}...)`
+        };
+        setTokens(prev => [...prev, newToken]);
         setCustomToken("");
         toast({
           title: "Success",
