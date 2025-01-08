@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey, Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
-import { validatePrivateKey, checkWalletBalance } from "@/utils/walletOperations";
+import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
@@ -243,3 +243,4 @@ const Index = () => {
 };
 
 export default Index;
+
