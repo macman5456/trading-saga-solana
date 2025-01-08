@@ -13,6 +13,7 @@ import {
 
 interface RPCConfigProps {
   onRPCChange: (url: string) => void;
+  defaultEndpoint: string;
 }
 
 const DEFAULT_RPC_ENDPOINTS = [
@@ -25,17 +26,13 @@ const DEFAULT_RPC_ENDPOINTS = [
     url: "https://ssc-dao.genesysgo.net",
   },
   {
-    name: "Serum",
-    url: "https://solana-api.projectserum.com",
-  },
-  {
     name: "Custom",
     url: "",
   },
 ];
 
-const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
-  const [selectedEndpoint, setSelectedEndpoint] = useState(DEFAULT_RPC_ENDPOINTS[0].url);
+const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
+  const [selectedEndpoint, setSelectedEndpoint] = useState(defaultEndpoint);
   const [customRpcUrl, setCustomRpcUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +66,6 @@ const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
       setIsConnected(false);
       setLatency(null);
       
-      // More specific error message based on the error type
       let errorMessage = "Failed to connect to RPC endpoint.";
       if (error.message.includes("403")) {
         errorMessage = "Access denied. This RPC endpoint may require authentication or has reached its rate limit.";

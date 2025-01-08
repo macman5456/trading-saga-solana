@@ -16,8 +16,11 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
+// QuickNode RPC endpoint
+const QUICKNODE_RPC = "https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813";
+
 const App = () => {
-  const [endpoint, setEndpoint] = useState("https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813");
+  const [endpoint, setEndpoint] = useState(QUICKNODE_RPC);
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
@@ -29,7 +32,7 @@ const App = () => {
             <TooltipProvider>
               <div className="min-h-screen bg-background">
                 <div className="container mx-auto p-4">
-                  <RPCConfig onRPCChange={setEndpoint} />
+                  <RPCConfig onRPCChange={setEndpoint} defaultEndpoint={QUICKNODE_RPC} />
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>
