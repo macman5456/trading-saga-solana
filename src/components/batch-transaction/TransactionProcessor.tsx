@@ -35,16 +35,24 @@ const TransactionProcessor = ({
     const newWallet = Keypair.generate();
     console.log("Creating new wallet:", newWallet.publicKey.toString());
 
+    // Get the minimum rent exemption amount
+    const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+    console.log("Rent exemption amount:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+
+    // Calculate total amount needed including rent exemption
+    const totalAmount = amount * LAMPORTS_PER_SOL + rentExemption;
+    console.log("Total amount needed:", totalAmount / LAMPORTS_PER_SOL, "SOL");
+
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     
     const transaction = new Transaction();
 
-    // Add transfer to new wallet
+    // Add transfer to new wallet (including rent exemption)
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
         toPubkey: newWallet.publicKey,
-        lamports: amount * LAMPORTS_PER_SOL,
+        lamports: totalAmount,
       })
     );
 
@@ -63,7 +71,7 @@ const TransactionProcessor = ({
     transaction.feePayer = sourceWallet.publicKey;
     
     try {
-      // Simulate the transaction first
+      // Calculate required balance for the entire transaction
       const simulation = await connection.simulateTransaction(transaction);
       console.log("Transaction simulation result:", simulation);
 
@@ -118,6 +126,18 @@ const TransactionProcessor = ({
       // Check source wallet balance
       const balance = await connection.getBalance(sourceWallet.publicKey);
       console.log("Source wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
+
+      // Calculate total required amount for all transactions
+      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+      const totalRequired = addressCount * (
+        (buyAmount * LAMPORTS_PER_SOL) + 
+        rentExemption + 
+        (jitoTip * LAMPORTS_PER_SOL)
+      );
+
+      if (balance < totalRequired) {
+        throw new Error(`Insufficient funds. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${balance / LAMPORTS_PER_SOL} SOL`);
+      }
 
       setCurrentStep(1);
       const generatedWallets = [];
