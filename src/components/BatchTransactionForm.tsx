@@ -24,6 +24,8 @@ interface BatchTransactionFormProps {
   onSuccessCountChange: (count: number) => void;
 }
 
+const DEFAULT_HELIUS_RPC = "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com";
+
 const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: BatchTransactionFormProps) => {
   const [privateKey, setPrivateKey] = useState("");
   const [publicKey, setPublicKey] = useState("");
@@ -32,7 +34,7 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
   const [addressCount, setAddressCount] = useState<number>(4);
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedDexEndpoint, setSelectedDexEndpoint] = useState<string>("https://api.mainnet-beta.solana.com");
+  const [selectedDexEndpoint, setSelectedDexEndpoint] = useState<string>(DEFAULT_HELIUS_RPC);
   const [solBalance, setSolBalance] = useState("0");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
