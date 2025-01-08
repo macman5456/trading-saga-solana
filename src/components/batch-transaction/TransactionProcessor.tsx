@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL, Transaction, PublicKey } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
-import { calculateRequiredBalance, validateBalance } from "@/utils/transaction/balanceCalculator";
-import { buildTransferTransaction } from "@/utils/transaction/buildTransaction";
+import { buildTransferTransaction } from "@/utils/transaction/transactionUtils";
 import { WalletCreationResult } from "@/utils/transaction/types";
 
 interface TransactionProcessorProps {
@@ -19,7 +18,7 @@ interface TransactionProcessorProps {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000; // Increased to 2 seconds
+const RETRY_DELAY = 2000;
 
 const TransactionProcessor = ({
   privateKey,
@@ -51,19 +50,13 @@ const TransactionProcessor = ({
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: sourceWallet.publicKey,
-          toPubkey: newWallet.publicKey,
-          lamports: transferAmount,
-        })
+      const transaction = buildTransferTransaction(
+        sourceWallet,
+        newWallet.publicKey,
+        transferAmount,
+        jitoTip,
+        blockhash
       );
-
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = sourceWallet.publicKey;
-
-      // Sign transaction with source wallet only
-      transaction.sign(sourceWallet);
 
       const rawTransaction = transaction.serialize();
       
@@ -76,7 +69,6 @@ const TransactionProcessor = ({
 
       console.log("Transaction sent with signature:", signature);
 
-      // Wait for confirmation with increased timeout
       const confirmation = await connection.confirmTransaction({
         signature,
         blockhash,
@@ -114,19 +106,17 @@ const TransactionProcessor = ({
       setCurrentStep(1);
       setProcessedWallets(0);
 
-      // Validate private key and create source wallet
       const sourceWallet = validatePrivateKey(privateKey);
       if (!sourceWallet) {
-        throw new Error("Invalid private key provided. Please check your private key and try again.");
+        throw new Error("Invalid private key provided");
       }
 
       console.log("Source wallet validated:", sourceWallet.publicKey.toString());
 
       if (!selectedToken) {
-        throw new Error("Please select a token before starting the transaction.");
+        throw new Error("Please select a token before starting");
       }
 
-      // Calculate required balance
       const transferAmount = buyAmount * LAMPORTS_PER_SOL;
       const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
       console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
@@ -144,8 +134,6 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-          console.log("Attempting to transfer", transferAmount / LAMPORTS_PER_SOL, "SOL");
-
           const signature = await processTransaction(sourceWallet, newWallet, transferAmount);
           console.log("Transaction successful with signature:", signature);
 
@@ -159,7 +147,6 @@ const TransactionProcessor = ({
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
-          // Add delay between transactions
           if (i < addressCount - 1) {
             await sleep(1000);
           }
@@ -186,7 +173,7 @@ const TransactionProcessor = ({
       console.error("Transaction process error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to process transaction. Please try again.",
+        description: error.message || "Failed to process transaction",
         variant: "destructive",
       });
     } finally {
