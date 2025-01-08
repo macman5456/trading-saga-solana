@@ -88,7 +88,7 @@ const WalletFileUpload = ({ onWalletsImported }: WalletFileUploadProps) => {
 
   return (
     <Card
-      className={`p-6 border-2 border-dashed cursor-pointer transition-colors ${
+      className={`p-4 border-2 border-dashed cursor-pointer transition-colors ${
         isDragging ? 'border-primary bg-primary/10' : 'border-border'
       }`}
       onDrop={onDrop}
@@ -96,18 +96,10 @@ const WalletFileUpload = ({ onWalletsImported }: WalletFileUploadProps) => {
       onDragLeave={onDragLeave}
       onClick={onClick}
     >
-      <div className="flex flex-col items-center justify-center gap-2 text-center">
-        <Upload className="w-8 h-8 text-muted-foreground" />
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">
-            Upload File
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Drag file here or click to upload
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Supported file types: Excel / CSV / TXT / JSON
+      <div className="flex items-center justify-center gap-2 text-center">
+        <Upload className="w-4 h-4 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          Drop file or click to upload
         </p>
       </div>
     </Card>

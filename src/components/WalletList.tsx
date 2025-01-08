@@ -30,11 +30,8 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
 
   const handleExportCSV = () => {
     try {
-      // Create CSV content
       const csvContent = [
-        // Header row
         ['Public Key', 'Private Key', 'SOL Balance', 'Token Balance'].join(','),
-        // Data rows
         ...wallets.map(wallet => [
           wallet.publicKey,
           wallet.privateKey,
@@ -43,7 +40,6 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
         ].join(','))
       ].join('\n');
 
-      // Create blob and download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -78,11 +74,14 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
     }
   };
 
+  const truncateAddress = (address: string) => {
+    return `${address.slice(0, 5)}...${address.slice(-5)}`;
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Generated Wallets</h2>
-        {wallets.length > 0 && (
+      {wallets.length > 0 && (
+        <div className="flex justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -92,8 +91,8 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         {wallets.map((wallet) => (
@@ -101,15 +100,15 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="font-medium">Public Key:</span>
-                <span className="text-sm font-mono">{wallet.publicKey}</span>
+                <span className="text-sm font-mono">{truncateAddress(wallet.publicKey)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-medium">Private Key:</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-mono">
                     {showPrivateKeys[wallet.publicKey] 
-                      ? wallet.privateKey 
-                      : "••••••••••••••••"}
+                      ? truncateAddress(wallet.privateKey)
+                      : "•••••"}
                   </span>
                   <Button
                     variant="ghost"
@@ -133,7 +132,9 @@ const WalletList = ({ wallets, onWalletsImported }: WalletListProps) => {
         ))}
       </div>
 
-      <WalletFileUpload onWalletsImported={handleWalletsImported} />
+      <div className="mt-4">
+        <WalletFileUpload onWalletsImported={handleWalletsImported} />
+      </div>
     </div>
   );
 };
