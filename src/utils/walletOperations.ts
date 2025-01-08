@@ -21,9 +21,18 @@ export const checkWalletBalance = async (
 ): Promise<number> => {
   try {
     console.log("Checking balance for wallet:", wallet.publicKey.toString());
-    const balance = await connection.getBalance(wallet.publicKey);
-    console.log("Retrieved wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
-    return balance;
+    // Retry up to 3 times with increasing delays
+    for (let i = 0; i < 3; i++) {
+      try {
+        const balance = await connection.getBalance(wallet.publicKey);
+        console.log("Retrieved wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
+        return balance;
+      } catch (error) {
+        if (i === 2) throw error; // On last attempt, throw the error
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Wait 1s, then 2s, then 3s
+      }
+    }
+    throw new Error("Failed to fetch balance after retries");
   } catch (error) {
     console.error("Error checking wallet balance:", error);
     throw new Error("Failed to fetch wallet balance");
