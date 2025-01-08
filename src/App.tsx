@@ -17,17 +17,17 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
+const DEFAULT_RPC = "https://rpc-devnet.helius.xyz/?api-key=48711179-c2d9-4f84-9d39-8e4c6c9fbf64";
 
 const App = () => {
   const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
-  const network = WalletAdapterNetwork.Mainnet;
+  const network = WalletAdapterNetwork.Devnet; // Changed to Devnet
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   // Configure connection settings with proper typing
   const connectionConfig = {
     commitment: 'confirmed' as Commitment,
-    confirmTransactionInitialTimeout: 120000, // Increase timeout to 2 minutes
+    confirmTransactionInitialTimeout: 120000, // 2 minute timeout
   };
 
   return (

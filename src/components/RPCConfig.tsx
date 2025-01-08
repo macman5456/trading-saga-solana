@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Connection, Commitment } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -20,12 +20,12 @@ interface RPCConfigProps {
 const DEFAULT_RPC_ENDPOINTS = [
   {
     name: "Helius RPC",
-    url: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
+    url: "https://rpc-devnet.helius.xyz/?api-key=48711179-c2d9-4f84-9d39-8e4c6c9fbf64"
   }
 ];
 
 const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
-  const [selectedEndpoint, setSelectedEndpoint] = useState(defaultEndpoint);
+  const [selectedEndpoint, setSelectedEndpoint] = useState(DEFAULT_RPC_ENDPOINTS[0].url);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
@@ -37,10 +37,7 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(url, {
-        commitment: 'confirmed' as Commitment,
-        confirmTransactionInitialTimeout: 60000,
-      });
+      const connection = new Connection(url);
       
       const version = await connection.getVersion();
       const endTime = performance.now();
