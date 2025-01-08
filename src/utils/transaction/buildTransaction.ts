@@ -7,6 +7,13 @@ export const buildTransferTransaction = (
   jitoTip: number,
   blockhash: string
 ): Transaction => {
+  console.log("Building transfer transaction:", {
+    from: sourceWallet.publicKey.toString(),
+    to: newWallet.publicKey.toString(),
+    amount: transferAmount / LAMPORTS_PER_SOL,
+    jitoTip
+  });
+
   const transaction = new Transaction();
   
   // Add transfer instruction with exact amount including rent

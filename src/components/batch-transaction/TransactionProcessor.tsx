@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, Transaction, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { calculateRequiredBalance, validateBalance } from "@/utils/transaction/balanceCalculator";
