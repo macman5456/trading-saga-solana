@@ -5,15 +5,11 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const TokenSelector = () => {
   const { connected, publicKey } = useWallet();
-  const [tokens, setTokens] = useState<Array<{ address: string; symbol: string }>>([
-    { address: "So11111111111111111111111111111111111111112", symbol: "SOL" },
-    { address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", symbol: "USDC" },
-    { address: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", symbol: "RAY" },
-  ]);
+  const [tokens, setTokens] = useState<Array<{ address: string; symbol: string }>>([]);
   const [customToken, setCustomToken] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
@@ -24,12 +20,15 @@ const TokenSelector = () => {
     const fetchWalletTokens = async () => {
       if (connected && publicKey) {
         try {
-          // Here you would typically fetch token accounts
-          // This is a simplified version
+          // Here you would fetch token accounts from the connected wallet
+          // This is a placeholder - you would implement the actual token fetching logic
           toast({
             title: "Wallet Connected",
-            description: "Successfully fetched wallet tokens",
+            description: "Scanning for tokens in your wallet...",
           });
+          
+          // Reset tokens when wallet connects
+          setTokens([]);
         } catch (error) {
           console.error("Error fetching tokens:", error);
           toast({
@@ -38,6 +37,9 @@ const TokenSelector = () => {
             variant: "destructive",
           });
         }
+      } else {
+        // Clear tokens when wallet disconnects
+        setTokens([]);
       }
     };
 
@@ -57,6 +59,11 @@ const TokenSelector = () => {
           title: "Success",
           description: "Custom token added successfully",
         });
+      } else {
+        toast({
+          title: "Token Exists",
+          description: "This token is already in your list",
+        });
       }
     } catch (error) {
       toast({
@@ -75,8 +82,20 @@ const TokenSelector = () => {
       </div>
 
       <div className="space-y-2">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Enter token address"
+            value={customToken}
+            onChange={(e) => setCustomToken(e.target.value)}
+            className="flex-1"
+          />
+          <Button onClick={handleCustomTokenAdd} variant="outline">
+            Add
+          </Button>
+        </div>
+
         <Select value={selectedToken} onValueChange={setSelectedToken}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger>
             <SelectValue placeholder="Select a token or enter address" />
           </SelectTrigger>
           <SelectContent>
@@ -85,19 +104,13 @@ const TokenSelector = () => {
                 {token.symbol}
               </SelectItem>
             ))}
+            {tokens.length === 0 && (
+              <SelectItem value="no-tokens" disabled>
+                {connected ? "No tokens found" : "Connect wallet to view tokens"}
+              </SelectItem>
+            )}
           </SelectContent>
         </Select>
-
-        <div className="flex gap-2">
-          <Input
-            placeholder="Enter token address"
-            value={customToken}
-            onChange={(e) => setCustomToken(e.target.value)}
-          />
-          <Button onClick={handleCustomTokenAdd} variant="outline">
-            Add
-          </Button>
-        </div>
       </div>
     </div>
   );
