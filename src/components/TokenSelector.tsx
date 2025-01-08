@@ -7,27 +7,27 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 
-const TokenSelector = () => {
+interface TokenSelectorProps {
+  onTokenSelect: (token: string) => void;
+}
+
+const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { connected, publicKey } = useWallet();
   const [tokens, setTokens] = useState<Array<{ address: string; symbol: string }>>([]);
   const [customToken, setCustomToken] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
 
-  const connection = new Connection("https://api.mainnet-beta.solana.com");
+  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com");
 
   useEffect(() => {
     const fetchWalletTokens = async () => {
       if (connected && publicKey) {
         try {
-          // Here you would fetch token accounts from the connected wallet
-          // This is a placeholder - you would implement the actual token fetching logic
           toast({
             title: "Wallet Connected",
             description: "Scanning for tokens in your wallet...",
           });
-          
-          // Reset tokens when wallet connects
           setTokens([]);
         } catch (error) {
           console.error("Error fetching tokens:", error);
@@ -38,7 +38,6 @@ const TokenSelector = () => {
           });
         }
       } else {
-        // Clear tokens when wallet disconnects
         setTokens([]);
       }
     };
@@ -48,10 +47,8 @@ const TokenSelector = () => {
 
   const handleCustomTokenAdd = () => {
     try {
-      // Validate Solana address
       new PublicKey(customToken);
       
-      // Check if token already exists
       if (!tokens.some(token => token.address === customToken)) {
         setTokens(prev => [...prev, { address: customToken, symbol: `Custom (${customToken.slice(0, 4)}...)` }]);
         setCustomToken("");
@@ -74,6 +71,11 @@ const TokenSelector = () => {
     }
   };
 
+  const handleTokenSelect = (value: string) => {
+    setSelectedToken(value);
+    onTokenSelect(value); // Notify parent component about token selection
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -81,37 +83,34 @@ const TokenSelector = () => {
         <WalletMultiButton className="bg-primary hover:bg-primary/90" />
       </div>
 
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Enter token address"
-            value={customToken}
-            onChange={(e) => setCustomToken(e.target.value)}
-            className="flex-1"
-          />
-          <Button onClick={handleCustomTokenAdd} variant="outline">
-            Add
-          </Button>
-        </div>
-
-        <Select value={selectedToken} onValueChange={setSelectedToken}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select a token or enter address" />
-          </SelectTrigger>
-          <SelectContent>
-            {tokens.map((token) => (
-              <SelectItem key={token.address} value={token.address}>
-                {token.symbol}
-              </SelectItem>
-            ))}
-            {tokens.length === 0 && (
-              <SelectItem value="no-tokens" disabled>
-                {connected ? "No tokens found" : "Connect wallet to view tokens"}
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
+      <Select value={selectedToken} onValueChange={handleTokenSelect}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select a token or enter address" />
+        </SelectTrigger>
+        <SelectContent>
+          <div className="p-2">
+            <Input
+              placeholder="Enter token address"
+              value={customToken}
+              onChange={(e) => setCustomToken(e.target.value)}
+              className="mb-2"
+            />
+            <Button onClick={handleCustomTokenAdd} variant="outline" className="w-full mb-2">
+              Add Custom Token
+            </Button>
+          </div>
+          {tokens.map((token) => (
+            <SelectItem key={token.address} value={token.address}>
+              {token.symbol}
+            </SelectItem>
+          ))}
+          {tokens.length === 0 && (
+            <SelectItem value="no-tokens" disabled>
+              {connected ? "No tokens found" : "Connect wallet to view tokens"}
+            </SelectItem>
+          )}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

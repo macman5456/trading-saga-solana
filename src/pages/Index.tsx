@@ -17,6 +17,7 @@ const Index = () => {
   const [solBalance, setSolBalance] = useState<number>(0);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
+  const [selectedToken, setSelectedToken] = useState("");
 
   // Use the Helius RPC endpoint
   const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", {
@@ -95,7 +96,7 @@ const Index = () => {
         </div>
 
         <div className="space-y-6">
-          <TokenSelector />
+          <TokenSelector onTokenSelect={setSelectedToken} />
 
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
@@ -131,7 +132,7 @@ const Index = () => {
             </div>
           </div>
 
-          <DexSelector />
+          <DexSelector selectedToken={selectedToken} />
 
           <div className="grid grid-cols-2 gap-4">
             <AddressCounter />
