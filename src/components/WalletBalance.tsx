@@ -46,6 +46,10 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
       
       const newSolBalance = balance / LAMPORTS_PER_SOL;
       setSolBalance(newSolBalance);
+      
+      // For now, we're setting token balance to 0 since we haven't implemented token balance fetching yet
+      setTokenBalance(0);
+      
       onBalanceUpdate(newSolBalance, 0);
       
     } catch (error) {
