@@ -7,7 +7,7 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 
@@ -18,7 +18,8 @@ const Index = () => {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
 
-  const connection = new Connection("https://api.mainnet-beta.solana.com");
+  // Use a public RPC endpoint
+  const connection = new Connection(clusterApiUrl('mainnet-beta'));
 
   const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
