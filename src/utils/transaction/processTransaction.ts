@@ -21,11 +21,11 @@ export const processTransaction = async (
     // Calculate amounts in lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalAmount = buyAmountLamports;
+    const totalTransferAmount = buyAmountLamports + rentExemption;
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    const requiredBalance = totalAmount + jitoTipLamports + rentExemption + 5000; // Adding 5000 lamports for fee
+    const requiredBalance = totalTransferAmount + jitoTipLamports + 5000; // Adding 5000 lamports for fee
 
     console.log("\nBalance check:", {
       sourceBalance: sourceBalance / LAMPORTS_PER_SOL,
@@ -46,26 +46,18 @@ export const processTransaction = async (
     // Create transaction
     const transaction = new Transaction();
 
-    // First transfer rent exemption
+    // Single transfer instruction with total amount (including rent)
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
         toPubkey: newWallet.publicKey,
-        lamports: rentExemption,
-      })
-    );
-
-    // Then transfer buy amount
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: sourceWallet.publicKey,
-        toPubkey: newWallet.publicKey,
-        lamports: buyAmountLamports,
+        lamports: totalTransferAmount,
       })
     );
 
     // Add Jito tip if specified
     if (jitoTip > 0) {
+      console.log("Adding Jito tip:", jitoTip, "SOL");
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: sourceWallet.publicKey,
@@ -75,11 +67,10 @@ export const processTransaction = async (
       );
     }
 
-    // Set transaction properties
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Sign transaction
+    // Sign transaction with source wallet only
     transaction.sign(sourceWallet);
 
     console.log("Sending transaction...");
