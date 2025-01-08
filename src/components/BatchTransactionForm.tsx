@@ -5,6 +5,7 @@ import TokenSelector from "./TokenSelector";
 import DexSelector from "./DexSelector";
 import AddressCounter from "./AddressCounter";
 import JitoTip from "./JitoTip";
+import WalletBalance from "./WalletBalance";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { Input } from "./ui/input";
@@ -53,6 +54,10 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         variant: "destructive",
       });
     }
+  };
+
+  const handleBalanceUpdate = (solBalance: number, tokenBalance: number) => {
+    console.log("Balance updated:", { solBalance, tokenBalance });
   };
 
   const handleBatchTransaction = async () => {
@@ -168,6 +173,13 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
           />
         </div>
       </div>
+
+      {publicKey && (
+        <WalletBalance 
+          publicKey={publicKey} 
+          onBalanceUpdate={handleBalanceUpdate}
+        />
+      )}
 
       <DexSelector 
         selectedToken={selectedToken} 
