@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 
 interface TokenSelectorProps {
@@ -13,17 +13,13 @@ interface TokenSelectorProps {
 
 const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
   const [tokens, setTokens] = useState<Array<{ address: string; symbol: string }>>([]);
   const [customToken, setCustomToken] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-
-  const connection = new Connection("https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813", {
-    commitment: "confirmed",
-    confirmTransactionInitialTimeout: 60000
-  });
 
   useEffect(() => {
     let isSubscribed = true;
@@ -84,7 +80,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
             setIsLoading(false);
             toast({
               title: "Error",
-              description: "Failed to fetch wallet tokens after multiple attempts. Please try reconnecting your wallet.",
+              description: "Failed to fetch wallet tokens. Please try again later.",
               variant: "destructive",
             });
           }
