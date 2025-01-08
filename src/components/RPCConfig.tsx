@@ -68,9 +68,18 @@ const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
       console.error("RPC Connection error:", error);
       setIsConnected(false);
       setLatency(null);
+      
+      // More specific error message based on the error type
+      let errorMessage = "Failed to connect to RPC endpoint.";
+      if (error.message.includes("403")) {
+        errorMessage = "Access denied. This RPC endpoint may require authentication or has reached its rate limit.";
+      } else if (error.message.includes("timeout")) {
+        errorMessage = "Connection timed out. The RPC endpoint may be experiencing high latency.";
+      }
+      
       toast({
         title: "RPC Connection Failed",
-        description: error.message || "Failed to connect to RPC endpoint. Please try another endpoint.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
