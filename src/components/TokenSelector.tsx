@@ -17,10 +17,13 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const [customToken, setCustomToken] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
+  const [hasShownConnectedToast, setHasShownConnectedToast] = useState(false);
 
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
   useEffect(() => {
+    let isSubscribed = true;
+
     const fetchWalletTokens = async () => {
       if (connected && publicKey) {
         try {
@@ -28,32 +31,45 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
           const balance = await connection.getBalance(publicKey);
           console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
           
-          toast({
-            title: "Wallet Connected",
-            description: "Scanning for tokens in your wallet...",
-          });
+          if (!hasShownConnectedToast && isSubscribed) {
+            toast({
+              title: "Wallet Connected",
+              description: "Successfully connected to wallet on Devnet",
+            });
+            setHasShownConnectedToast(true);
+          }
 
-          // For now, just add SOL as a token
-          setTokens([{
-            address: "SOL",
-            symbol: "SOL"
-          }]);
+          if (isSubscribed) {
+            setTokens([{
+              address: "SOL",
+              symbol: "SOL"
+            }]);
+          }
 
         } catch (error) {
           console.error("Error fetching tokens:", error);
-          toast({
-            title: "Error",
-            description: "Failed to fetch wallet tokens",
-            variant: "destructive",
-          });
+          if (isSubscribed) {
+            toast({
+              title: "Error",
+              description: "Failed to fetch wallet tokens",
+              variant: "destructive",
+            });
+          }
         }
       } else {
-        setTokens([]);
+        if (isSubscribed) {
+          setTokens([]);
+          setHasShownConnectedToast(false);
+        }
       }
     };
 
     fetchWalletTokens();
-  }, [connected, publicKey, connection]);
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [connected, publicKey, connection, hasShownConnectedToast]);
 
   const handleCustomTokenAdd = () => {
     try {
