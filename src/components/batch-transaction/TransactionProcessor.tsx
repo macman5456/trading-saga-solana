@@ -1,7 +1,13 @@
 import { useState, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { 
+  Keypair, 
+  Transaction, 
+  SystemProgram, 
+  LAMPORTS_PER_SOL,
+  PublicKey 
+} from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { createNewWallet } from "@/utils/transaction/walletCreation";
@@ -35,7 +41,20 @@ const TransactionProcessor = ({
 
   const simulateTransaction = async (transaction: Transaction, sourceWallet: Keypair) => {
     try {
-      console.log("Simulating transaction...");
+      console.log("Simulating transaction with details:", {
+        sourceWallet: sourceWallet.publicKey.toString(),
+        transactionSize: transaction.serialize().length,
+      });
+
+      // Get the minimum rent exemption
+      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+      console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+
+      // Add rent exemption to transaction if not already included
+      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
+      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+
+      // Simulate the transaction
       const simulation = await connection.simulateTransaction(transaction);
       
       if (simulation.value.err) {
@@ -55,10 +74,41 @@ const TransactionProcessor = ({
     }
   };
 
+  const createAndSimulateTransaction = async (
+    sourceWallet: Keypair,
+    destinationPubkey: PublicKey,
+    amount: number,
+    rentExemption: number
+  ) => {
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: sourceWallet.publicKey,
+        toPubkey: destinationPubkey,
+        lamports: amount * LAMPORTS_PER_SOL + rentExemption,
+      })
+    );
+
+    if (jitoTip > 0) {
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+          lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+        })
+      );
+    }
+
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = sourceWallet.publicKey;
+
+    return transaction;
+  };
+
   const handleStartTransaction = async () => {
     try {
-      console.log("Starting transaction process...");
-      console.log("Parameters:", {
+      console.log("Starting transaction process with params:", {
         addressCount,
         buyAmount,
         jitoTip,
@@ -73,18 +123,27 @@ const TransactionProcessor = ({
       if (!sourceWallet) {
         throw new Error("Invalid private key provided");
       }
-      console.log("Source wallet public key:", sourceWallet.publicKey.toString());
 
       if (!selectedToken) {
         throw new Error("Please select a token first");
       }
 
-      // Get latest blockhash before starting transactions
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-      console.log("Got fresh blockhash:", blockhash);
+      // Get rent exemption amount
+      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+      console.log("Rent exemption per account:", rentExemption / LAMPORTS_PER_SOL, "SOL");
 
-      // Validate initial balance
-      await validateWalletBalance(connection, sourceWallet, addressCount, buyAmount, jitoTip);
+      // Calculate total required amount including rent
+      const totalRequired = addressCount * (
+        (buyAmount * LAMPORTS_PER_SOL) + 
+        rentExemption + 
+        (jitoTip * LAMPORTS_PER_SOL) +
+        5000 // Additional buffer for transaction fees
+      );
+
+      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
+      if (sourceBalance < totalRequired) {
+        throw new Error(`Insufficient funds. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+      }
 
       setCurrentStep(1);
       const generatedWallets = [];
@@ -93,19 +152,40 @@ const TransactionProcessor = ({
         try {
           console.log(`Processing wallet ${i + 1} of ${addressCount}`);
           
-          // Create transaction for new wallet
-          const newWallet = await createNewWallet(
-            connection,
+          // Create new wallet
+          const newWallet = Keypair.generate();
+          console.log("New wallet public key:", newWallet.publicKey.toString());
+
+          // Create and simulate transaction
+          const transaction = await createAndSimulateTransaction(
             sourceWallet,
+            newWallet.publicKey,
             buyAmount,
-            jitoTip
+            rentExemption
           );
 
-          console.log("New wallet created:", newWallet.publicKey);
+          // Simulate before sending
+          await simulateTransaction(transaction, sourceWallet);
+
+          // Send transaction
+          transaction.sign(sourceWallet);
+          const signature = await connection.sendRawTransaction(transaction.serialize(), {
+            skipPreflight: false,
+            preflightCommitment: 'confirmed',
+          });
+
+          console.log("Transaction sent:", signature);
+
+          // Wait for confirmation
+          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+          if (confirmation.value.err) {
+            throw new Error(`Transaction failed: ${confirmation.value.err}`);
+          }
 
           // Add wallet to generated list
           generatedWallets.push({
-            ...newWallet,
+            publicKey: newWallet.publicKey.toString(),
+            privateKey: bs58.encode(newWallet.secretKey),
             solBalance: buyAmount,
             tokenBalance: 0,
           });
