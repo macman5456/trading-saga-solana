@@ -9,7 +9,7 @@ interface RPCConfigProps {
 }
 
 const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
-  const [rpcUrl, setRpcUrl] = useState("https://ssc-dao.genesysgo.net");
+  const [rpcUrl, setRpcUrl] = useState("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com");
   const [isConnected, setIsConnected] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const { toast } = useToast();

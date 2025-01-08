@@ -17,8 +17,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Using GenesysGo's public RPC endpoint
-  const [endpoint, setEndpoint] = useState("https://ssc-dao.genesysgo.net");
+  const [endpoint, setEndpoint] = useState("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com");
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 

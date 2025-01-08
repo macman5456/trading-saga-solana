@@ -19,7 +19,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { toast } = useToast();
   const [hasShownConnectedToast, setHasShownConnectedToast] = useState(false);
 
-  const connection = new Connection("https://ssc-dao.genesysgo.net", "confirmed");
+  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", "confirmed");
 
   useEffect(() => {
     let isSubscribed = true;
@@ -54,8 +54,8 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
         }
       } catch (error) {
         console.error("Error fetching tokens:", error);
-        // Only show error toast if the wallet is connected
-        if (connected && isSubscribed) {
+        // Only show error toast if component is still mounted
+        if (isSubscribed && connected) {
           toast({
             title: "Error",
             description: "Failed to fetch wallet tokens",
@@ -65,7 +65,10 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
       }
     };
 
-    fetchWalletTokens();
+    // Only fetch tokens when wallet is connected
+    if (connected) {
+      fetchWalletTokens();
+    }
 
     return () => {
       isSubscribed = false;
