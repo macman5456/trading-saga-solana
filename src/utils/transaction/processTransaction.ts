@@ -14,16 +14,16 @@ export const processTransaction = async (
     console.log("Buy amount:", buyAmount, "SOL");
     console.log("Jito tip:", jitoTip, "SOL");
 
-    // Calculate amounts in lamports
+    // Convert amounts to lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const transactionFee = 5000; // Standard fee
+    const transactionFee = 5000; // Standard fee in lamports
 
-    // Get minimum rent exemption for a data size of 0 (just storing SOL)
+    // Get rent exemption
     const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
     console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
 
-    // Calculate total amount needed
+    // Calculate total required amount
     const totalRequired = buyAmountLamports + rentExemption + jitoTipLamports + transactionFee;
 
     // Check source wallet balance
@@ -42,20 +42,18 @@ export const processTransaction = async (
     }
 
     // Get latest blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
     console.log("Got blockhash:", blockhash);
 
     // Create transaction
     const transaction = new Transaction();
 
-    // Create and initialize the account with SystemProgram.createAccount
+    // Add transfer instruction
     transaction.add(
-      SystemProgram.createAccount({
+      SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
-        newAccountPubkey: newWallet.publicKey,
-        lamports: buyAmountLamports + rentExemption, // Include both the transfer amount and rent exemption
-        space: 0, // No additional data needed
-        programId: SystemProgram.programId, // Using System Program as the owner
+        toPubkey: newWallet.publicKey,
+        lamports: buyAmountLamports + rentExemption,
       })
     );
 
@@ -71,15 +69,16 @@ export const processTransaction = async (
       );
     }
 
+    // Set transaction properties
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Both wallets need to sign: source wallet for spending and new wallet for account creation
-    transaction.sign(sourceWallet, newWallet);
+    // Sign transaction
+    transaction.sign(sourceWallet);
 
     console.log("Sending transaction...");
     
-    // Send and confirm transaction
+    // Send transaction
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       maxRetries: 3,
@@ -88,10 +87,11 @@ export const processTransaction = async (
 
     console.log("Transaction sent with signature:", signature);
 
+    // Wait for confirmation
     const confirmation = await connection.confirmTransaction({
       signature,
       blockhash,
-      lastValidBlockHeight,
+      lastValidBlockHeight: await connection.getBlockHeight(),
     });
 
     if (confirmation.value.err) {
