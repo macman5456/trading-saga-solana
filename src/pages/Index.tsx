@@ -7,59 +7,9 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
-import bs58 from "bs58";
-
-const createAndFundWallet = async (
-  connection: Connection,
-  amount: number,
-  jitoTip: number,
-  fromWallet: Keypair
-) => {
-  const newWallet = Keypair.generate();
-  
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: fromWallet.publicKey,
-      toPubkey: newWallet.publicKey,
-      lamports: amount * LAMPORTS_PER_SOL,
-    })
-  );
-
-  if (jitoTip > 0) {
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: fromWallet.publicKey,
-        toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-        lamports: jitoTip * LAMPORTS_PER_SOL,
-      })
-    );
-  }
-
-  const signature = await connection.sendTransaction(transaction, [fromWallet]);
-  await connection.confirmTransaction(signature);
-
-  return newWallet;
-}
-
-const closeWallet = async (
-  connection: Connection,
-  walletToClose: Keypair,
-  destinationWallet: PublicKey
-) => {
-  const balance = await connection.getBalance(walletToClose.publicKey);
-  const transaction = new Transaction().add(
-    SystemProgram.transfer({
-      fromPubkey: walletToClose.publicKey,
-      toPubkey: destinationWallet,
-      lamports: balance,
-    })
-  );
-
-  const signature = await connection.sendTransaction(transaction, [walletToClose]);
-  await connection.confirmTransaction(signature);
-}
+import { validatePrivateKey, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
@@ -73,66 +23,53 @@ const Index = () => {
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", {
-    commitment: "confirmed",
-  });
+  const connection = new Connection(
+    "https://api.mainnet-beta.solana.com",
+    "confirmed"
+  );
 
   const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPrivateKey(value);
     
-    try {
-      if (value) {
-        const decodedKey = bs58.decode(value);
-        const keypair = Keypair.fromSecretKey(decodedKey);
-        const pubKey = keypair.publicKey.toString();
-        setPublicKey(pubKey);
-        
-        const balance = await connection.getBalance(keypair.publicKey);
-        console.log("Retrieved SOL balance:", balance);
-        setSolBalance(balance / LAMPORTS_PER_SOL);
-      } else {
-        setPublicKey("");
-        setSolBalance(0);
-        setTokenBalance(0);
-      }
-    } catch (error) {
-      console.error("Error processing private key:", error);
+    if (!value) {
       setPublicKey("");
       setSolBalance(0);
       setTokenBalance(0);
-      if (value) {
+      return;
+    }
+
+    const keypair = validatePrivateKey(value);
+    if (keypair) {
+      const pubKey = keypair.publicKey.toString();
+      setPublicKey(pubKey);
+      
+      try {
+        const balance = await connection.getBalance(keypair.publicKey);
+        console.log("Retrieved SOL balance:", balance);
+        setSolBalance(balance / LAMPORTS_PER_SOL);
+      } catch (error) {
+        console.error("Error fetching balance:", error);
         toast({
-          title: "Invalid Private Key",
-          description: "Please enter a valid Solana private key",
+          title: "Error",
+          description: "Failed to fetch wallet balance",
           variant: "destructive",
         });
       }
+    } else {
+      setPublicKey("");
+      setSolBalance(0);
+      setTokenBalance(0);
+      toast({
+        title: "Invalid Private Key",
+        description: "Please enter a valid Solana private key",
+        variant: "destructive",
+      });
     }
   };
 
-  useEffect(() => {
-    const fetchBalances = async () => {
-      if (publicKey) {
-        try {
-          console.log("Fetching balance for address:", publicKey);
-          const solBalance = await connection.getBalance(new PublicKey(publicKey));
-          console.log("Retrieved SOL balance:", solBalance);
-          setSolBalance(solBalance / LAMPORTS_PER_SOL);
-          setTokenBalance(0);
-        } catch (error) {
-          console.error("Error fetching balances:", error);
-          setSolBalance(0);
-          setTokenBalance(0);
-        }
-      }
-    };
-
-    fetchBalances();
-  }, [publicKey]);
-
   const handleBatchTransaction = async () => {
-    if (!privateKey || !publicKey) {
+    if (!privateKey) {
       toast({
         title: "Error",
         description: "Please enter a valid private key first",
@@ -141,18 +78,27 @@ const Index = () => {
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      const decodedKey = bs58.decode(privateKey);
-      const mainWallet = Keypair.fromSecretKey(decodedKey);
-      const mainPubKey = new PublicKey(publicKey);
+    const mainWallet = validatePrivateKey(privateKey);
+    if (!mainWallet) {
+      toast({
+        title: "Error",
+        description: "Invalid private key",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    setIsProcessing(true);
+    let successCount = 0;
+
+    try {
       for (let i = 0; i < addressCount; i++) {
         toast({
           title: "Processing",
           description: `Creating wallet ${i + 1} of ${addressCount}`,
         });
 
+        // Create and fund new wallet
         const newWallet = await createAndFundWallet(
           connection,
           parseFloat(buyAmount),
@@ -160,18 +106,29 @@ const Index = () => {
           mainWallet
         );
 
-        await closeWallet(connection, newWallet, mainPubKey);
+        // Close wallet and return funds
+        await closeWallet(
+          connection,
+          newWallet,
+          mainWallet.publicKey
+        );
 
+        successCount++;
         toast({
           title: "Success",
           description: `Completed transaction ${i + 1} of ${addressCount}`,
         });
       }
+
+      // Refresh main wallet balance
+      const newBalance = await connection.getBalance(mainWallet.publicKey);
+      setSolBalance(newBalance / LAMPORTS_PER_SOL);
+
     } catch (error) {
       console.error("Transaction error:", error);
       toast({
         title: "Error",
-        description: "Failed to process transactions",
+        description: `Failed after completing ${successCount} transactions. Please try again.`,
         variant: "destructive",
       });
     } finally {
