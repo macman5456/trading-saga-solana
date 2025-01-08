@@ -36,10 +36,12 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
   const [solBalance, setSolBalance] = useState("0");
   const [tokenBalance, setTokenBalance] = useState("0");
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handlePrivateKeyChange = async (value: string) => {
     setPrivateKey(value);
+    setBalanceError(null);
     
     if (!value) {
       setPublicKey("");
@@ -59,8 +61,10 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         const connection = new Connection(selectedDexEndpoint, "confirmed");
         const balance = await checkWalletBalance(connection, keypair);
         setSolBalance((balance / LAMPORTS_PER_SOL).toFixed(4));
-      } catch (error) {
+        setBalanceError(null);
+      } catch (error: any) {
         console.error("Error fetching balance:", error);
+        setBalanceError(error.message || "Failed to fetch balance");
         toast({
           title: "Error",
           description: "Failed to fetch wallet balance",
@@ -181,12 +185,14 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         <BalanceDisplay 
           label="SOL Balance" 
           value={solBalance}
-          isLoading={isLoadingBalance} 
+          isLoading={isLoadingBalance}
+          error={balanceError || undefined}
         />
         <BalanceDisplay 
           label="Token Balance" 
           value={tokenBalance}
-          isLoading={isLoadingBalance} 
+          isLoading={isLoadingBalance}
+          error={balanceError || undefined}
         />
       </div>
 
