@@ -10,7 +10,6 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { useState, useMemo } from "react";
 import RPCConfig from "./components/RPCConfig";
-import { clusterApiUrl } from "@solana/web3.js";
 
 // Import wallet adapter CSS
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -18,7 +17,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [endpoint, setEndpoint] = useState(clusterApiUrl("mainnet-beta"));
+  const [endpoint, setEndpoint] = useState("https://ssc-dao.genesysgo.net");
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 

@@ -3,41 +3,66 @@ import { Connection } from "@solana/web3.js";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface RPCConfigProps {
   onRPCChange: (url: string) => void;
 }
 
+const DEFAULT_RPC_ENDPOINTS = [
+  {
+    name: "GenesysGo",
+    url: "https://ssc-dao.genesysgo.net",
+  },
+  {
+    name: "Serum",
+    url: "https://solana-api.projectserum.com",
+  },
+  {
+    name: "Custom",
+    url: "",
+  },
+];
+
 const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
-  const [rpcUrl, setRpcUrl] = useState("https://api.mainnet-beta.solana.com");
+  const [selectedEndpoint, setSelectedEndpoint] = useState(DEFAULT_RPC_ENDPOINTS[0].url);
+  const [customRpcUrl, setCustomRpcUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const { toast } = useToast();
 
-  const checkConnection = async () => {
+  const checkConnection = async (url: string) => {
+    if (!url) return;
+    
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(rpcUrl, "confirmed");
+      const connection = new Connection(url, "confirmed");
       await connection.getSlot();
       const endTime = performance.now();
       
       setLatency(Math.round(endTime - startTime));
       setIsConnected(true);
-      onRPCChange(rpcUrl);
+      onRPCChange(url);
       
       toast({
         title: "RPC Connected",
         description: `Successfully connected to RPC endpoint`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("RPC Connection error:", error);
       setIsConnected(false);
       setLatency(null);
       toast({
         title: "RPC Connection Failed",
-        description: "Failed to connect to RPC endpoint. Please try another endpoint.",
+        description: error.message || "Failed to connect to RPC endpoint. Please try another endpoint.",
         variant: "destructive",
       });
     } finally {
@@ -45,26 +70,62 @@ const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
     }
   };
 
+  const handleEndpointChange = (value: string) => {
+    if (value === "custom") {
+      setSelectedEndpoint("custom");
+    } else {
+      setSelectedEndpoint(value);
+      checkConnection(value);
+    }
+  };
+
   useEffect(() => {
-    checkConnection();
+    if (selectedEndpoint && selectedEndpoint !== "custom") {
+      checkConnection(selectedEndpoint);
+    }
   }, []);
 
   return (
     <div className="space-y-4 p-4 border rounded-lg mb-4">
       <div className="flex items-center gap-4">
-        <Input
-          placeholder="Enter RPC URL"
-          value={rpcUrl}
-          onChange={(e) => setRpcUrl(e.target.value)}
-          className="flex-1"
-          disabled={isLoading}
-        />
-        <Button 
-          onClick={checkConnection}
-          disabled={isLoading}
+        <Select
+          value={selectedEndpoint}
+          onValueChange={handleEndpointChange}
         >
-          {isLoading ? "Connecting..." : "Connect"}
-        </Button>
+          <SelectTrigger className="w-[240px]">
+            <SelectValue placeholder="Select RPC endpoint" />
+          </SelectTrigger>
+          <SelectContent>
+            {DEFAULT_RPC_ENDPOINTS.map((endpoint) => (
+              <SelectItem 
+                key={endpoint.name} 
+                value={endpoint.url || "custom"}
+              >
+                {endpoint.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedEndpoint === "custom" && (
+          <Input
+            placeholder="Enter custom RPC URL"
+            value={customRpcUrl}
+            onChange={(e) => setCustomRpcUrl(e.target.value)}
+            className="flex-1"
+            disabled={isLoading}
+          />
+        )}
+
+        {selectedEndpoint === "custom" && (
+          <Button 
+            onClick={() => checkConnection(customRpcUrl)}
+            disabled={isLoading || !customRpcUrl}
+          >
+            {isLoading ? "Connecting..." : "Connect"}
+          </Button>
+        )}
+
         <div className="flex items-center gap-2">
           <div
             className={`w-3 h-3 rounded-full ${
