@@ -10,18 +10,20 @@ export const buildTransferTransaction = (
   console.log("Building transfer transaction:", {
     from: sourceWallet.publicKey.toString(),
     to: newWallet.publicKey.toString(),
-    amount: transferAmount / LAMPORTS_PER_SOL,
-    jitoTip
+    amountSOL: transferAmount / LAMPORTS_PER_SOL,
+    jitoTipSOL: jitoTip
   });
 
   const transaction = new Transaction();
   
   // Add transfer instruction with exact amount including rent
   transaction.add(
-    SystemProgram.transfer({
+    SystemProgram.createAccount({
       fromPubkey: sourceWallet.publicKey,
-      toPubkey: newWallet.publicKey,
+      newAccountPubkey: newWallet.publicKey,
       lamports: transferAmount,
+      space: 0,
+      programId: SystemProgram.programId,
     })
   );
 

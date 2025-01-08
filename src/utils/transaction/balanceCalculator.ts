@@ -10,12 +10,13 @@ export const calculateRequiredBalance = async (
   const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
   console.log("Rent exemption per wallet:", rentExemption / LAMPORTS_PER_SOL, "SOL");
   
-  // Increase transaction fee buffer to ensure sufficient funds
-  const transactionFeeBuffer = 15000; // 0.000015 SOL per transaction
+  // Increase transaction fee buffer significantly to ensure sufficient funds
+  const transactionFeeBuffer = 50000; // 0.00005 SOL per transaction
 
+  // Calculate total required amount including rent exemption for each new account
   const totalRequired = addressCount * (
     (buyAmount * LAMPORTS_PER_SOL) + 
-    rentExemption +
+    rentExemption +  // Include rent exemption for each new account
     (jitoTip * LAMPORTS_PER_SOL) +
     transactionFeeBuffer
   );
@@ -23,10 +24,10 @@ export const calculateRequiredBalance = async (
   console.log("Total required balance calculation:", {
     addressCount,
     buyAmountInLamports: buyAmount * LAMPORTS_PER_SOL,
-    rentExemption,
+    rentExemptionPerWallet: rentExemption,
     jitoTipInLamports: jitoTip * LAMPORTS_PER_SOL,
     transactionFeeBuffer,
-    totalRequired: totalRequired / LAMPORTS_PER_SOL
+    totalRequiredInSOL: totalRequired / LAMPORTS_PER_SOL
   });
 
   return { totalRequired, rentExemption, transactionFeeBuffer };
@@ -39,9 +40,9 @@ export const validateBalance = async (
 ): Promise<void> => {
   const balance = await connection.getBalance(publicKey);
   console.log("Balance check:", {
-    available: balance / LAMPORTS_PER_SOL,
-    required: requiredAmount / LAMPORTS_PER_SOL,
-    difference: (balance - requiredAmount) / LAMPORTS_PER_SOL
+    availableSOL: balance / LAMPORTS_PER_SOL,
+    requiredSOL: requiredAmount / LAMPORTS_PER_SOL,
+    differenceSOL: (balance - requiredAmount) / LAMPORTS_PER_SOL
   });
   
   if (balance < requiredAmount) {
