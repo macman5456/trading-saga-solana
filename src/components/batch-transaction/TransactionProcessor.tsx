@@ -59,20 +59,22 @@ const TransactionProcessor = ({
         blockhash
       );
 
-      // Sign transaction - fixed the signing process
+      // Sign transaction with both wallets
       transaction.partialSign(sourceWallet);
       transaction.partialSign(newWallet);
-      
+
       const rawTransaction = transaction.serialize();
       
+      // Send transaction with preflight checks disabled and maximum retries
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: true,
-        maxRetries: 3,
+        maxRetries: 5,
         preflightCommitment: 'confirmed',
       });
 
-      console.log("Transaction sent:", signature);
+      console.log("Transaction sent with signature:", signature);
 
+      // Wait for confirmation with increased timeout
       const confirmation = await connection.confirmTransaction({
         signature,
         blockhash,
@@ -88,6 +90,7 @@ const TransactionProcessor = ({
       console.error(`Transaction attempt ${retryCount + 1} failed:`, error);
       
       if (retryCount < MAX_RETRIES) {
+        console.log(`Retrying transaction in ${RETRY_DELAY}ms...`);
         await sleep(RETRY_DELAY);
         return processTransaction(sourceWallet, newWallet, transferAmount, retryCount + 1);
       }
@@ -113,15 +116,17 @@ const TransactionProcessor = ({
       setCurrentStep(0);
       setProcessedWallets(0);
 
+      // Validate private key and create source wallet
       const sourceWallet = validatePrivateKey(privateKey);
       if (!sourceWallet) {
-        throw new Error("Invalid private key provided");
+        throw new Error("Invalid private key provided. Please check your private key and try again.");
       }
 
       if (!selectedToken) {
-        throw new Error("Please select a token first");
+        throw new Error("Please select a token before starting the transaction.");
       }
 
+      // Calculate and validate balance
       const { totalRequired } = await calculateRequiredBalance(connection, addressCount, buyAmount, jitoTip);
       await validateBalance(connection, sourceWallet.publicKey, totalRequired);
 
@@ -133,12 +138,13 @@ const TransactionProcessor = ({
           console.log(`Processing wallet ${i + 1} of ${addressCount}`);
           
           const newWallet = Keypair.generate();
-          console.log("New wallet public key:", newWallet.publicKey.toString());
+          console.log("Generated new wallet:", newWallet.publicKey.toString());
 
           const transferAmount = buyAmount * LAMPORTS_PER_SOL;
-          console.log("Transfer amount:", transferAmount / LAMPORTS_PER_SOL, "SOL");
+          console.log("Attempting to transfer", transferAmount / LAMPORTS_PER_SOL, "SOL");
 
-          await processTransaction(sourceWallet, newWallet, transferAmount);
+          const signature = await processTransaction(sourceWallet, newWallet, transferAmount);
+          console.log("Transaction successful with signature:", signature);
 
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
@@ -153,7 +159,7 @@ const TransactionProcessor = ({
         } catch (error: any) {
           console.error(`Error processing wallet ${i + 1}:`, error);
           toast({
-            title: "Error",
+            title: "Transaction Failed",
             description: `Failed to process wallet ${i + 1}: ${error.message}`,
             variant: "destructive",
           });
@@ -169,10 +175,10 @@ const TransactionProcessor = ({
         });
       }
     } catch (error: any) {
-      console.error("Transaction error:", error);
+      console.error("Transaction process error:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to process transaction",
+        description: error.message || "Failed to process transaction. Please try again.",
         variant: "destructive",
       });
     } finally {
