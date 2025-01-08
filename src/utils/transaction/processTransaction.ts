@@ -1,55 +1,75 @@
-import { Connection, Keypair } from "@solana/web3.js";
-import { createTransferTransaction } from "./createTransaction";
-import { calculateTransferAmount } from "./rentCalculations";
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 
 export const processTransaction = async (
   connection: Connection,
   sourceWallet: Keypair,
   newWallet: Keypair,
   buyAmount: number,
-  jitoTip: number,
-  retryCount = 0
+  jitoTip: number
 ): Promise<string> => {
   try {
-    console.log(`Processing transaction attempt ${retryCount + 1} for wallet ${newWallet.publicKey.toString()}`);
-    
+    console.log("Starting transaction process...");
+    console.log("Source wallet:", sourceWallet.publicKey.toString());
+    console.log("New wallet:", newWallet.publicKey.toString());
+    console.log("Buy amount:", buyAmount, "SOL");
+    console.log("Jito tip:", jitoTip, "SOL");
+
+    // Get latest blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
-    console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
+    console.log("Got blockhash:", blockhash);
 
-    // Calculate required amounts
-    const { transferAmount } = await calculateTransferAmount(
-      connection,
-      buyAmount,
-      jitoTip
-    );
-
-    // Create and sign transaction
-    const transaction = createTransferTransaction(
-      sourceWallet,
-      newWallet,
-      transferAmount,
-      jitoTip,
-      blockhash
-    );
+    // Calculate amounts in lamports
+    const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
+    const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
+    const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
     
+    console.log("Amounts in lamports:");
+    console.log("- Buy amount:", buyAmountLamports);
+    console.log("- Jito tip:", jitoTipLamports);
+    console.log("- Rent exemption:", rentExemption);
+
+    // Create transaction
+    const transaction = new Transaction();
+
+    // Add transfer instruction
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: sourceWallet.publicKey,
+        toPubkey: newWallet.publicKey,
+        lamports: buyAmountLamports + rentExemption,
+      })
+    );
+
+    // Add Jito tip if specified
+    if (jitoTip > 0) {
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+          lamports: jitoTipLamports,
+        })
+      );
+    }
+
+    // Set transaction properties
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = sourceWallet.publicKey;
+
+    // Sign transaction
+    console.log("Signing transaction...");
     transaction.sign(sourceWallet);
-    
+
+    // Send transaction
     console.log("Sending transaction...");
-    const rawTransaction = transaction.serialize();
-    
-    const signature = await connection.sendRawTransaction(rawTransaction, {
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
-      maxRetries: 5,
+      maxRetries: 3,
       preflightCommitment: 'finalized',
     });
 
     console.log("Transaction sent with signature:", signature);
 
+    // Wait for confirmation
     const confirmation = await connection.confirmTransaction({
       signature,
       blockhash,
@@ -64,13 +84,7 @@ export const processTransaction = async (
     return signature;
 
   } catch (error: any) {
-    console.error(`Transaction attempt ${retryCount + 1} failed:`, error);
-    
-    if (retryCount < MAX_RETRIES) {
-      console.log(`Retrying transaction in ${RETRY_DELAY}ms...`);
-      await sleep(RETRY_DELAY);
-      return processTransaction(connection, sourceWallet, newWallet, buyAmount, jitoTip, retryCount + 1);
-    }
+    console.error("Transaction processing error:", error);
     throw error;
   }
 };

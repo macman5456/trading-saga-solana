@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { calculateTransferAmount } from "@/utils/transaction/rentCalculations";
@@ -65,10 +65,12 @@ const TransactionProcessor = ({
       );
       
       const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+      console.log("Source wallet balance:", sourceBalance / 1e9, "SOL");
+      console.log("Total required per transaction:", totalRequired / 1e9, "SOL");
+      console.log("Total required for all transactions:", (totalRequired * addressCount) / 1e9, "SOL");
 
       if (sourceBalance < totalRequired * addressCount) {
-        throw new Error(`Insufficient balance. Required: ${(totalRequired * addressCount) / LAMPORTS_PER_SOL} SOL`);
+        throw new Error(`Insufficient balance. Required: ${(totalRequired * addressCount) / 1e9} SOL`);
       }
 
       const generatedWallets: WalletCreationResult[] = [];
@@ -100,6 +102,7 @@ const TransactionProcessor = ({
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
+          // Add delay between transactions
           if (i < addressCount - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
