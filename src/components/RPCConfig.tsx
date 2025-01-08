@@ -9,7 +9,7 @@ interface RPCConfigProps {
 }
 
 const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
-  const [rpcUrl, setRpcUrl] = useState("https://api.mainnet-beta.solana.com");
+  const [rpcUrl, setRpcUrl] = useState("https://solana-mainnet.rpc.extrnode.com");
   const [isConnected, setIsConnected] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
   const { toast } = useToast();

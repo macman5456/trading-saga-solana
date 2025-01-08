@@ -19,7 +19,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { toast } = useToast();
   const [hasShownConnectedToast, setHasShownConnectedToast] = useState(false);
 
-  const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+  const connection = new Connection("https://solana-mainnet.rpc.extrnode.com", "confirmed");
 
   useEffect(() => {
     let isSubscribed = true;

@@ -8,7 +8,6 @@ import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
-import { clusterApiUrl } from "@solana/web3.js";
 import { useState, useMemo } from "react";
 import RPCConfig from "./components/RPCConfig";
 
@@ -18,7 +17,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [endpoint, setEndpoint] = useState("https://api.mainnet-beta.solana.com");
+  // Using a more reliable public RPC endpoint
+  const [endpoint, setEndpoint] = useState("https://solana-mainnet.rpc.extrnode.com");
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
