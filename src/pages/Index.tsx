@@ -6,8 +6,9 @@ import DexSelector from "@/components/DexSelector";
 import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import WalletBalance from "@/components/WalletBalance";
+import TransactionLog from "@/components/TransactionLog";
 import { useState } from "react";
-import { Connection, LAMPORTS_PER_SOL, PublicKey, Keypair } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 
@@ -22,6 +23,7 @@ const Index = () => {
   const [addressCount, setAddressCount] = useState<number>(4);
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [successCount, setSuccessCount] = useState<number>(0);
 
   const connection = new Connection(
     "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
@@ -81,7 +83,8 @@ const Index = () => {
     }
 
     setIsProcessing(true);
-    let successCount = 0;
+    setSuccessCount(0);
+    let currentSuccessCount = 0;
 
     try {
       const initialBalance = await checkWalletBalance(connection, mainWallet);
@@ -108,7 +111,9 @@ const Index = () => {
           mainWallet.publicKey
         );
 
-        successCount++;
+        currentSuccessCount++;
+        setSuccessCount(currentSuccessCount);
+        
         toast({
           title: "Success",
           description: `Completed transaction ${i + 1} of ${addressCount}`,
@@ -122,7 +127,7 @@ const Index = () => {
       console.error("Transaction error:", error);
       toast({
         title: "Error",
-        description: error.message || `Failed after completing ${successCount} transactions. Please try again.`,
+        description: error.message || `Failed after completing ${currentSuccessCount} transactions. Please try again.`,
         variant: "destructive",
       });
     } finally {
@@ -206,6 +211,8 @@ const Index = () => {
             only 0.00009 SOL.
           </p>
         </div>
+
+        <TransactionLog successCount={successCount} />
       </div>
     </div>
   );
