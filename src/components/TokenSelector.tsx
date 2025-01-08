@@ -25,42 +25,42 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     let isSubscribed = true;
 
     const fetchWalletTokens = async () => {
-      if (connected && publicKey) {
-        try {
-          console.log("Fetching tokens for wallet:", publicKey.toString());
-          const balance = await connection.getBalance(publicKey);
-          console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
-          
-          if (!hasShownConnectedToast && isSubscribed) {
-            toast({
-              title: "Wallet Connected",
-              description: "Successfully connected to wallet on Mainnet",
-            });
-            setHasShownConnectedToast(true);
-          }
-
-          // Always add SOL as the default token
-          if (isSubscribed) {
-            setTokens([{
-              address: "SOL",
-              symbol: "SOL"
-            }]);
-          }
-
-        } catch (error) {
-          console.error("Error fetching tokens:", error);
-          if (isSubscribed) {
-            toast({
-              title: "Error",
-              description: "Failed to fetch wallet tokens",
-              variant: "destructive",
-            });
-          }
-        }
-      } else {
+      if (!connected || !publicKey) {
         if (isSubscribed) {
           setTokens([]);
           setHasShownConnectedToast(false);
+        }
+        return;
+      }
+
+      try {
+        console.log("Fetching tokens for wallet:", publicKey.toString());
+        const balance = await connection.getBalance(publicKey);
+        console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
+        
+        if (!hasShownConnectedToast && isSubscribed) {
+          toast({
+            title: "Wallet Connected",
+            description: "Successfully connected to wallet on Mainnet",
+          });
+          setHasShownConnectedToast(true);
+        }
+
+        if (isSubscribed) {
+          setTokens([{
+            address: "SOL",
+            symbol: "SOL"
+          }]);
+        }
+      } catch (error) {
+        console.error("Error fetching tokens:", error);
+        // Only show error toast if the wallet is connected
+        if (connected && isSubscribed) {
+          toast({
+            title: "Error",
+            description: "Failed to fetch wallet tokens",
+            variant: "destructive",
+          });
         }
       }
     };
@@ -116,28 +116,36 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
 
       <Select value={selectedToken} onValueChange={handleTokenSelect}>
         <SelectTrigger>
-          <SelectValue placeholder="Select a token or enter address" />
+          <SelectValue placeholder={connected ? "Select a token or enter address" : "Connect wallet first"} />
         </SelectTrigger>
         <SelectContent>
-          <div className="p-2">
-            <Input
-              placeholder="Enter token address"
-              value={customToken}
-              onChange={(e) => setCustomToken(e.target.value)}
-              className="mb-2"
-            />
-            <Button onClick={handleCustomTokenAdd} variant="outline" className="w-full mb-2">
-              Add Custom Token
-            </Button>
-          </div>
-          {tokens.map((token) => (
-            <SelectItem key={token.address} value={token.address}>
-              {token.symbol}
-            </SelectItem>
-          ))}
-          {tokens.length === 0 && (
-            <SelectItem value="no-tokens" disabled>
-              {connected ? "No tokens found" : "Connect wallet to view tokens"}
+          {connected ? (
+            <>
+              <div className="p-2">
+                <Input
+                  placeholder="Enter token address"
+                  value={customToken}
+                  onChange={(e) => setCustomToken(e.target.value)}
+                  className="mb-2"
+                />
+                <Button onClick={handleCustomTokenAdd} variant="outline" className="w-full mb-2">
+                  Add Custom Token
+                </Button>
+              </div>
+              {tokens.map((token) => (
+                <SelectItem key={token.address} value={token.address}>
+                  {token.symbol}
+                </SelectItem>
+              ))}
+              {tokens.length === 0 && (
+                <SelectItem value="no-tokens" disabled>
+                  No tokens found
+                </SelectItem>
+              )}
+            </>
+          ) : (
+            <SelectItem value="connect-wallet" disabled>
+              Please connect your wallet first
             </SelectItem>
           )}
         </SelectContent>
