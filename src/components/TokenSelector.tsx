@@ -17,11 +17,11 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const [customToken, setCustomToken] = useState("");
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
-  const [hasShownConnectedToast, setHasShownConnectedToast] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", {
+  const connection = new Connection("https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813", {
     commitment: "confirmed",
     confirmTransactionInitialTimeout: 60000
   });
@@ -29,13 +29,13 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   useEffect(() => {
     let isSubscribed = true;
     const MAX_RETRIES = 3;
-    const RETRY_DELAY = 2000; // 2 seconds
+    const RETRY_DELAY = 2000;
 
     const fetchWalletTokens = async () => {
       if (!connected || !publicKey) {
         if (isSubscribed) {
           setTokens([]);
-          setHasShownConnectedToast(false);
+          setHasInitialized(false);
         }
         return;
       }
@@ -47,7 +47,6 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
         const balance = await connection.getBalance(publicKey);
         console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
         
-        // Get token accounts
         const tokenAccounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
           programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
         });
@@ -56,12 +55,13 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
 
         if (!isSubscribed) return;
 
-        if (!hasShownConnectedToast) {
+        // Only show the toast once when first connecting
+        if (!hasInitialized) {
           toast({
             title: "Wallet Connected",
             description: "Successfully connected to wallet and fetched tokens",
           });
-          setHasShownConnectedToast(true);
+          setHasInitialized(true);
         }
 
         const tokenList = [
@@ -76,7 +76,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
         ];
 
         setTokens(tokenList);
-        setRetryCount(0); // Reset retry count on success
+        setRetryCount(0);
         setIsLoading(false);
 
       } catch (error) {
@@ -106,7 +106,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     return () => {
       isSubscribed = false;
     };
-  }, [connected, publicKey, retryCount, connection, hasShownConnectedToast, toast]);
+  }, [connected, publicKey, retryCount, connection, toast]);
 
   const handleCustomTokenAdd = () => {
     try {
