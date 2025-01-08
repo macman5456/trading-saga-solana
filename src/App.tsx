@@ -16,11 +16,11 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-// QuickNode RPC endpoint
-const QUICKNODE_RPC = "https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813";
+// Default RPC endpoint (GenesysGo is generally more reliable)
+const DEFAULT_RPC = "https://ssc-dao.genesysgo.net";
 
 const App = () => {
-  const [endpoint, setEndpoint] = useState(QUICKNODE_RPC);
+  const [endpoint, setEndpoint] = useState(DEFAULT_RPC);
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
@@ -32,7 +32,7 @@ const App = () => {
             <TooltipProvider>
               <div className="min-h-screen bg-background">
                 <div className="container mx-auto p-4">
-                  <RPCConfig onRPCChange={setEndpoint} defaultEndpoint={QUICKNODE_RPC} />
+                  <RPCConfig onRPCChange={setEndpoint} defaultEndpoint={DEFAULT_RPC} />
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>

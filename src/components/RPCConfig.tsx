@@ -18,12 +18,12 @@ interface RPCConfigProps {
 
 const DEFAULT_RPC_ENDPOINTS = [
   {
-    name: "QuickNode",
-    url: "https://rough-serene-model.solana-mainnet.quiknode.pro/3d5142b47fff85069a73dc90d0475ef21251b813",
-  },
-  {
     name: "GenesysGo",
     url: "https://ssc-dao.genesysgo.net",
+  },
+  {
+    name: "Helius",
+    url: "https://rpc.helius.xyz/?api-key=YOUR_API_KEY",
   },
   {
     name: "Custom",
@@ -68,9 +68,11 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       
       let errorMessage = "Failed to connect to RPC endpoint.";
       if (error.message.includes("403")) {
-        errorMessage = "Access denied. This RPC endpoint may require authentication or has reached its rate limit.";
+        errorMessage = "Access denied. Please check your API key or try a different endpoint.";
       } else if (error.message.includes("timeout")) {
         errorMessage = "Connection timed out. The RPC endpoint may be experiencing high latency.";
+      } else if (error.message.includes("429")) {
+        errorMessage = "Rate limit exceeded. Please try again later or use a different endpoint.";
       }
       
       toast({
