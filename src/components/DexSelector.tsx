@@ -1,57 +1,19 @@
-import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Connection } from "@solana/web3.js";
-
-interface DexOption {
-  id: string;
-  name: string;
-  icon: string;
-  rpcEndpoint: string;
-}
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { dexOptions } from "@/config/dexOptions";
+import { testConnection, findLiquidityPool } from "@/utils/connectionUtils";
+import DexButton from "./DexButton";
 
 interface DexSelectorProps {
   selectedToken: string;
   onDexSelect?: (dex: string, endpoint: string) => void;
 }
 
-const dexOptions: DexOption[] = [
-  { 
-    id: "raydium", 
-    name: "Raydium", 
-    icon: "🔸",
-    rpcEndpoint: "https://api.mainnet-beta.solana.com" 
-  },
-  { 
-    id: "pump", 
-    name: "Pump", 
-    icon: "🎯",
-    rpcEndpoint: "https://pump.rpc.fun"
-  },
-  { 
-    id: "moonshot", 
-    name: "MoonShot", 
-    icon: "🌙",
-    rpcEndpoint: "https://moonshot.rpc.network"
-  },
-];
-
 const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   const { toast } = useToast();
   const [selectedDex, setSelectedDex] = useState<string>("raydium");
   const [isConnecting, setIsConnecting] = useState(false);
-
-  const testConnection = async (endpoint: string): Promise<boolean> => {
-    try {
-      const connection = new Connection(endpoint);
-      const version = await connection.getVersion();
-      console.log("Connected to network version:", version);
-      return true;
-    } catch (error) {
-      console.error("Connection test failed:", error);
-      return false;
-    }
-  };
 
   const handleDexSelection = async (dexId: string) => {
     setIsConnecting(true);
@@ -67,8 +29,7 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
       return;
     }
 
-    console.log("Attempting to connect to:", selectedDexOption.name, "at", selectedDexOption.rpcEndpoint);
-
+    console.log("Attempting to connect to:", selectedDexOption.name);
     const isConnected = await testConnection(selectedDexOption.rpcEndpoint);
 
     if (isConnected) {
@@ -79,12 +40,12 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
       
       toast({
         title: "DEX Connected",
-        description: `Connected to ${selectedDexOption.name} network successfully`,
+        description: `Connected to ${selectedDexOption.name} successfully`,
       });
     } else {
       toast({
         title: "Connection Failed",
-        description: `Failed to connect to ${selectedDexOption.name} network. Please try again.`,
+        description: `Failed to connect to ${selectedDexOption.name}. Please try again.`,
         variant: "destructive",
       });
     }
@@ -92,28 +53,21 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
     setIsConnecting(false);
   };
 
-  const findLiquidityPool = async () => {
+  const handleFindLiquidityPool = async () => {
     if (!selectedToken) return;
 
     const selectedDexOption = dexOptions.find(dex => dex.id === selectedDex);
     if (!selectedDexOption) return;
 
-    try {
-      const connection = new Connection(selectedDexOption.rpcEndpoint);
-      await connection.getVersion();
-
-      toast({
-        title: "Finding Liquidity Pool",
-        description: `Searching for ${selectedToken} liquidity pool on ${selectedDexOption.name}`,
-      });
-
-    } catch (error) {
-      toast({
-        title: "Network Error",
-        description: `Failed to connect to ${selectedDexOption.name} network`,
-        variant: "destructive",
-      });
-    }
+    const found = await findLiquidityPool(selectedDexOption.rpcEndpoint, selectedToken);
+    
+    toast({
+      title: found ? "Liquidity Pool Found" : "Search Failed",
+      description: found 
+        ? `Found ${selectedToken} liquidity pool on ${selectedDexOption.name}`
+        : `Could not find liquidity pool on ${selectedDexOption.name}`,
+      variant: found ? "default" : "destructive",
+    });
   };
 
   return (
@@ -121,21 +75,15 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
       <label className="text-sm font-medium">DEX Selection</label>
       <div className="flex gap-2">
         {dexOptions.map((dex) => (
-          <button
+          <DexButton
             key={dex.id}
+            id={dex.id}
+            name={dex.name}
+            icon={dex.icon}
+            isSelected={selectedDex === dex.id}
+            isConnecting={isConnecting}
             onClick={() => handleDexSelection(dex.id)}
-            disabled={isConnecting}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
-              selectedDex === dex.id
-                ? "bg-primary text-white"
-                : "bg-secondary hover:bg-secondary/80",
-              isConnecting && "opacity-50 cursor-wait"
-            )}
-          >
-            <span>{dex.icon}</span>
-            <span>{dex.name}</span>
-          </button>
+          />
         ))}
         <button 
           className={cn(
@@ -145,7 +93,7 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
           disabled={!selectedToken || isConnecting}
-          onClick={findLiquidityPool}
+          onClick={handleFindLiquidityPool}
         >
           Find Liquidity Pool
         </button>
