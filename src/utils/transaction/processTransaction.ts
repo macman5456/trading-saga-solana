@@ -12,7 +12,7 @@ export const processTransaction = async (
     console.log("Source wallet:", sourceWallet.publicKey.toString());
     console.log("Destination wallet:", newWallet.publicKey.toString());
     
-    // 1. Calculate amounts
+    // Calculate amounts
     const transferAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
     const totalRequired = transferAmountLamports + rentExemption;
@@ -22,7 +22,7 @@ export const processTransaction = async (
     console.log("- Rent exemption:", rentExemption / LAMPORTS_PER_SOL, "SOL");
     console.log("- Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
 
-    // 2. Check source wallet balance
+    // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
     console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
     
@@ -30,10 +30,11 @@ export const processTransaction = async (
       throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
     }
 
-    // 3. Create and send transaction
+    // Create and send transaction
     const transaction = new Transaction();
     const { blockhash } = await connection.getLatestBlockhash('confirmed');
     
+    // Add transfer instruction
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
@@ -41,6 +42,18 @@ export const processTransaction = async (
         lamports: totalRequired,
       })
     );
+
+    // Add Jito tip if specified
+    if (jitoTip > 0) {
+      const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: newWallet.publicKey,
+          lamports: jitoTipLamports,
+        })
+      );
+    }
 
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
@@ -56,7 +69,7 @@ export const processTransaction = async (
 
     console.log("Transaction sent! Signature:", signature);
     
-    // 4. Wait for confirmation
+    // Wait for confirmation
     console.log("Waiting for confirmation...");
     const confirmation = await connection.confirmTransaction(signature, 'confirmed');
     
@@ -65,7 +78,7 @@ export const processTransaction = async (
       throw new Error(`Transaction failed: ${confirmation.value.err}`);
     }
 
-    // 5. Verify final balance
+    // Verify final balance
     const finalBalance = await connection.getBalance(newWallet.publicKey);
     console.log("New wallet final balance:", finalBalance / LAMPORTS_PER_SOL, "SOL");
 

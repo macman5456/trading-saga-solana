@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { processTransaction } from "@/utils/transaction/processTransaction";
@@ -46,15 +46,19 @@ const TransactionProcessor = ({
         throw new Error("Invalid private key provided");
       }
 
+      console.log(`Starting batch process for ${addressCount} wallets`);
       const generatedWallets: WalletCreationResult[] = [];
 
+      // Process each wallet in sequence
       for (let i = 0; i < addressCount; i++) {
         try {
           console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
           
+          // Generate new wallet
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
+          // Process SOL transfer
           const signature = await processTransaction(
             connection,
             sourceWallet,
@@ -63,8 +67,16 @@ const TransactionProcessor = ({
             jitoTip
           );
           
-          console.log("Transaction completed with signature:", signature);
+          console.log("SOL transfer completed with signature:", signature);
 
+          // If token is selected, process token purchase
+          if (selectedToken && selectedToken !== "SOL") {
+            setCurrentStep(2);
+            console.log(`Processing token purchase for ${selectedToken}`);
+            // Add token purchase logic here
+          }
+
+          // Add wallet to results
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
             privateKey: bs58.encode(newWallet.secretKey),
@@ -72,9 +84,11 @@ const TransactionProcessor = ({
             tokenBalance: 0,
           });
 
+          // Update progress
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
+          // Add delay between transactions
           if (i < addressCount - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -90,6 +104,7 @@ const TransactionProcessor = ({
         }
       }
 
+      // Process successful completion
       if (generatedWallets.length > 0) {
         onSuccess(generatedWallets);
         toast({
@@ -97,6 +112,7 @@ const TransactionProcessor = ({
           description: `Successfully processed ${generatedWallets.length} wallets`,
         });
       }
+
     } catch (error: any) {
       console.error("Transaction process error:", error);
       toast({
