@@ -5,8 +5,8 @@ import TokenSelector from "@/components/TokenSelector";
 import DexSelector from "@/components/DexSelector";
 import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
-import { X } from "lucide-react";
-import { useState, useEffect } from "react";
+import WalletBalance from "@/components/WalletBalance";
+import { useState } from "react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey, Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
@@ -23,30 +23,10 @@ const Index = () => {
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Using Mainnet connection
   const connection = new Connection(
-    "https://api.mainnet-beta.solana.com",
+    "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
     "confirmed"
   );
-
-  const updateBalances = async (keypair: Keypair) => {
-    try {
-      console.log("Updating balances for wallet:", keypair.publicKey.toString());
-      const balance = await checkWalletBalance(connection, keypair);
-      console.log("Updated SOL balance:", balance / LAMPORTS_PER_SOL);
-      setSolBalance(balance / LAMPORTS_PER_SOL);
-      
-      // For now, we'll set token balance to 0 since we're not tracking specific tokens yet
-      setTokenBalance(0);
-    } catch (error) {
-      console.error("Error updating balances:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update wallet balances",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -63,7 +43,6 @@ const Index = () => {
     if (keypair) {
       const pubKey = keypair.publicKey.toString();
       setPublicKey(pubKey);
-      await updateBalances(keypair);
     } else {
       setPublicKey("");
       setSolBalance(0);
@@ -74,6 +53,11 @@ const Index = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleBalanceUpdate = (newSolBalance: number, newTokenBalance: number) => {
+    setSolBalance(newSolBalance);
+    setTokenBalance(newTokenBalance);
   };
 
   const handleBatchTransaction = async () => {
@@ -100,7 +84,6 @@ const Index = () => {
     let successCount = 0;
 
     try {
-      // Check initial balance
       const initialBalance = await checkWalletBalance(connection, mainWallet);
       console.log("Initial balance:", initialBalance / LAMPORTS_PER_SOL, "SOL");
 
@@ -110,7 +93,6 @@ const Index = () => {
           description: `Creating wallet ${i + 1} of ${addressCount}`,
         });
 
-        // Create and fund new wallet
         const newWallet = await createAndFundWallet(
           connection,
           parseFloat(buyAmount),
@@ -120,7 +102,6 @@ const Index = () => {
 
         console.log(`New wallet ${i + 1} created:`, newWallet.publicKey.toString());
 
-        // Close wallet and return funds
         await closeWallet(
           connection,
           newWallet,
@@ -134,7 +115,6 @@ const Index = () => {
         });
       }
 
-      // Refresh main wallet balance
       const newBalance = await checkWalletBalance(connection, mainWallet);
       setSolBalance(newBalance / LAMPORTS_PER_SOL);
 
@@ -183,20 +163,10 @@ const Index = () => {
               value={publicKey}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
-              </label>
-              <Input disabled value={solBalance.toFixed(4)} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-1">
-                TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
-              </label>
-              <Input disabled value={tokenBalance.toFixed(4)} />
-            </div>
-          </div>
+          <WalletBalance 
+            publicKey={publicKey} 
+            onBalanceUpdate={handleBalanceUpdate}
+          />
         </div>
 
         <DexSelector selectedToken={selectedToken} />
