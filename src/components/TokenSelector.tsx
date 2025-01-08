@@ -47,14 +47,20 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
         }
 
         if (isSubscribed) {
-          setTokens([{
-            address: "SOL",
-            symbol: "SOL"
-          }]);
+          setTokens(prevTokens => {
+            // Keep custom tokens and add SOL
+            const customTokens = prevTokens.filter(token => token.address !== "SOL");
+            return [
+              {
+                address: "SOL",
+                symbol: "SOL"
+              },
+              ...customTokens
+            ];
+          });
         }
       } catch (error) {
         console.error("Error fetching tokens:", error);
-        // Only show error toast if component is still mounted
         if (isSubscribed && connected) {
           toast({
             title: "Error",
@@ -65,7 +71,6 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
       }
     };
 
-    // Only fetch tokens when wallet is connected
     if (connected) {
       fetchWalletTokens();
     }
@@ -79,23 +84,29 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     try {
       new PublicKey(customToken);
       
-      if (!tokens.some(token => token.address === customToken)) {
-        const newToken = { 
-          address: customToken, 
-          symbol: `Custom (${customToken.slice(0, 4)}...)`
-        };
-        setTokens(prev => [...prev, newToken]);
-        setCustomToken("");
+      const newToken = { 
+        address: customToken, 
+        symbol: `Custom (${customToken.slice(0, 4)}...)`
+      };
+
+      setTokens(prevTokens => {
+        if (prevTokens.some(token => token.address === customToken)) {
+          toast({
+            title: "Token Exists",
+            description: "This token is already in your list",
+          });
+          return prevTokens;
+        }
+        
         toast({
           title: "Success",
           description: "Custom token added successfully",
         });
-      } else {
-        toast({
-          title: "Token Exists",
-          description: "This token is already in your list",
-        });
-      }
+        
+        return [...prevTokens, newToken];
+      });
+      
+      setCustomToken("");
     } catch (error) {
       toast({
         title: "Invalid Address",
