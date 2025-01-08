@@ -19,7 +19,7 @@ interface TransactionProcessorProps {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const RETRY_DELAY = 2000; // Increased to 2 seconds
 
 const TransactionProcessor = ({
   privateKey,
@@ -46,30 +46,32 @@ const TransactionProcessor = ({
     retryCount = 0
   ): Promise<string> => {
     try {
-      console.log(`Processing transaction attempt ${retryCount + 1}`);
+      console.log(`Processing transaction attempt ${retryCount + 1} for wallet ${newWallet.publicKey.toString()}`);
       
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
       console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
-      const transaction = buildTransferTransaction(
-        sourceWallet,
-        newWallet,
-        transferAmount,
-        jitoTip,
-        blockhash
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: newWallet.publicKey,
+          lamports: transferAmount,
+        })
       );
 
-      // Sign transaction with both wallets
-      transaction.partialSign(sourceWallet);
-      transaction.partialSign(newWallet);
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = sourceWallet.publicKey;
+
+      // Sign transaction with source wallet only
+      transaction.sign(sourceWallet);
 
       const rawTransaction = transaction.serialize();
       
-      // Send transaction with preflight checks disabled and maximum retries
+      console.log("Sending transaction...");
       const signature = await connection.sendRawTransaction(rawTransaction, {
-        skipPreflight: true,
+        skipPreflight: false,
         maxRetries: 5,
-        preflightCommitment: 'confirmed',
+        preflightCommitment: 'finalized',
       });
 
       console.log("Transaction sent with signature:", signature);
@@ -79,13 +81,15 @@ const TransactionProcessor = ({
         signature,
         blockhash,
         lastValidBlockHeight,
-      }, 'confirmed');
+      }, 'finalized');
 
       if (confirmation.value.err) {
         throw new Error(`Transaction failed: ${confirmation.value.err}`);
       }
 
+      console.log("Transaction confirmed successfully");
       return signature;
+
     } catch (error: any) {
       console.error(`Transaction attempt ${retryCount + 1} failed:`, error);
       
@@ -105,15 +109,9 @@ const TransactionProcessor = ({
     }
 
     try {
-      console.log("Starting transaction process with params:", {
-        addressCount,
-        buyAmount,
-        jitoTip,
-        selectedToken
-      });
-      
+      console.log("Starting transaction process...");
       setIsProcessing(true);
-      setCurrentStep(0);
+      setCurrentStep(1);
       setProcessedWallets(0);
 
       // Validate private key and create source wallet
@@ -122,15 +120,21 @@ const TransactionProcessor = ({
         throw new Error("Invalid private key provided. Please check your private key and try again.");
       }
 
+      console.log("Source wallet validated:", sourceWallet.publicKey.toString());
+
       if (!selectedToken) {
         throw new Error("Please select a token before starting the transaction.");
       }
 
-      // Calculate and validate balance
-      const { totalRequired } = await calculateRequiredBalance(connection, addressCount, buyAmount, jitoTip);
-      await validateBalance(connection, sourceWallet.publicKey, totalRequired);
+      // Calculate required balance
+      const transferAmount = buyAmount * LAMPORTS_PER_SOL;
+      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
+      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
 
-      setCurrentStep(1);
+      if (sourceBalance < transferAmount * addressCount) {
+        throw new Error(`Insufficient balance. Required: ${transferAmount * addressCount / LAMPORTS_PER_SOL} SOL`);
+      }
+
       const generatedWallets: WalletCreationResult[] = [];
 
       for (let i = 0; i < addressCount; i++) {
@@ -140,7 +144,6 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-          const transferAmount = buyAmount * LAMPORTS_PER_SOL;
           console.log("Attempting to transfer", transferAmount / LAMPORTS_PER_SOL, "SOL");
 
           const signature = await processTransaction(sourceWallet, newWallet, transferAmount);
@@ -155,6 +158,11 @@ const TransactionProcessor = ({
 
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
+
+          // Add delay between transactions
+          if (i < addressCount - 1) {
+            await sleep(1000);
+          }
 
         } catch (error: any) {
           console.error(`Error processing wallet ${i + 1}:`, error);
@@ -184,6 +192,7 @@ const TransactionProcessor = ({
     } finally {
       setIsProcessing(false);
       setCurrentStep(0);
+      setProcessedWallets(0);
     }
   };
 
