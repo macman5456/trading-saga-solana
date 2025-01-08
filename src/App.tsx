@@ -9,7 +9,8 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { clusterApiUrl } from "@solana/web3.js";
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
+import RPCConfig from "./components/RPCConfig";
 
 // Import wallet adapter CSS
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -17,9 +18,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Using devnet for development and testing
-  const network = WalletAdapterNetwork.Devnet;
-  const endpoint = useMemo(() => "https://api.devnet.solana.com", []);
+  const [endpoint, setEndpoint] = useState("https://api.mainnet-beta.solana.com");
+  const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
@@ -28,13 +28,16 @@ const App = () => {
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                </Routes>
-              </BrowserRouter>
+              <div className="container mx-auto p-4">
+                <RPCConfig onRPCChange={setEndpoint} />
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                  </Routes>
+                </BrowserRouter>
+              </div>
             </TooltipProvider>
           </QueryClientProvider>
         </WalletModalProvider>

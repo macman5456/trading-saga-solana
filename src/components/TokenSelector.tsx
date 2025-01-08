@@ -19,7 +19,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const { toast } = useToast();
   const [hasShownConnectedToast, setHasShownConnectedToast] = useState(false);
 
-  const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+  const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
   useEffect(() => {
     let isSubscribed = true;
@@ -34,7 +34,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
           if (!hasShownConnectedToast && isSubscribed) {
             toast({
               title: "Wallet Connected",
-              description: "Successfully connected to wallet on Devnet",
+              description: "Successfully connected to wallet on Mainnet",
             });
             setHasShownConnectedToast(true);
           }
