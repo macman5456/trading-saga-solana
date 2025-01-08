@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+
 const tips = [
   { label: "Default", value: "0.00003" },
   { label: "High", value: "0.00008" },
@@ -5,7 +8,18 @@ const tips = [
   { label: "Custom", value: "0.001" },
 ];
 
-const JitoTip = () => {
+interface JitoTipProps {
+  onTipChange: (tip: string) => void;
+}
+
+const JitoTip = ({ onTipChange }: JitoTipProps) => {
+  const [selectedTip, setSelectedTip] = useState(tips[2]); // Default to Ultra-High
+
+  const handleTipSelect = (tip: typeof tips[0]) => {
+    setSelectedTip(tip);
+    onTipChange(tip.value);
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -16,11 +30,13 @@ const JitoTip = () => {
         {tips.map((tip) => (
           <button
             key={tip.value}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              tip.label === "Ultra-High"
+            onClick={() => handleTipSelect(tip)}
+            className={cn(
+              "px-4 py-2 rounded-md transition-colors",
+              tip.value === selectedTip.value
                 ? "bg-primary text-white"
                 : "bg-secondary hover:bg-secondary/80"
-            }`}
+            )}
           >
             {tip.label} {tip.value}
           </button>

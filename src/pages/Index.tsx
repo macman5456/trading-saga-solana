@@ -7,9 +7,59 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Keypair, Connection, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
+
+const createAndFundWallet = async (
+  connection: Connection,
+  amount: number,
+  jitoTip: number,
+  fromWallet: Keypair
+) => {
+  const newWallet = Keypair.generate();
+  
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: fromWallet.publicKey,
+      toPubkey: newWallet.publicKey,
+      lamports: amount * LAMPORTS_PER_SOL,
+    })
+  );
+
+  if (jitoTip > 0) {
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: fromWallet.publicKey,
+        toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+        lamports: jitoTip * LAMPORTS_PER_SOL,
+      })
+    );
+  }
+
+  const signature = await connection.sendTransaction(transaction, [fromWallet]);
+  await connection.confirmTransaction(signature);
+
+  return newWallet;
+}
+
+const closeWallet = async (
+  connection: Connection,
+  walletToClose: Keypair,
+  destinationWallet: PublicKey
+) => {
+  const balance = await connection.getBalance(walletToClose.publicKey);
+  const transaction = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: walletToClose.publicKey,
+      toPubkey: destinationWallet,
+      lamports: balance,
+    })
+  );
+
+  const signature = await connection.sendTransaction(transaction, [walletToClose]);
+  await connection.confirmTransaction(signature);
+}
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
@@ -18,8 +68,11 @@ const Index = () => {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
   const [selectedToken, setSelectedToken] = useState("");
+  const [buyAmount, setBuyAmount] = useState<string>("0.00001");
+  const [addressCount, setAddressCount] = useState<number>(4);
+  const [jitoTip, setJitoTip] = useState<string>("0.00015");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Use the Helius RPC endpoint
   const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com", {
     commitment: "confirmed",
   });
@@ -35,7 +88,6 @@ const Index = () => {
         const pubKey = keypair.publicKey.toString();
         setPublicKey(pubKey);
         
-        // Fetch balance immediately after setting public key
         const balance = await connection.getBalance(keypair.publicKey);
         console.log("Retrieved SOL balance:", balance);
         setSolBalance(balance / LAMPORTS_PER_SOL);
@@ -67,9 +119,6 @@ const Index = () => {
           const solBalance = await connection.getBalance(new PublicKey(publicKey));
           console.log("Retrieved SOL balance:", solBalance);
           setSolBalance(solBalance / LAMPORTS_PER_SOL);
-          
-          // For now, we'll reset token balance when address changes
-          // Token balance will be updated when a specific token is selected
           setTokenBalance(0);
         } catch (error) {
           console.error("Error fetching balances:", error);
@@ -81,6 +130,54 @@ const Index = () => {
 
     fetchBalances();
   }, [publicKey]);
+
+  const handleBatchTransaction = async () => {
+    if (!privateKey || !publicKey) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid private key first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const decodedKey = bs58.decode(privateKey);
+      const mainWallet = Keypair.fromSecretKey(decodedKey);
+      const mainPubKey = new PublicKey(publicKey);
+
+      for (let i = 0; i < addressCount; i++) {
+        toast({
+          title: "Processing",
+          description: `Creating wallet ${i + 1} of ${addressCount}`,
+        });
+
+        const newWallet = await createAndFundWallet(
+          connection,
+          parseFloat(buyAmount),
+          parseFloat(jitoTip),
+          mainWallet
+        );
+
+        await closeWallet(connection, newWallet, mainPubKey);
+
+        toast({
+          title: "Success",
+          description: `Completed transaction ${i + 1} of ${addressCount}`,
+        });
+      }
+    } catch (error) {
+      console.error("Transaction error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process transactions",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -135,11 +232,18 @@ const Index = () => {
           <DexSelector selectedToken={selectedToken} />
 
           <div className="grid grid-cols-2 gap-4">
-            <AddressCounter />
+            <AddressCounter onCountChange={setAddressCount} />
             <div className="space-y-2">
               <label className="text-sm font-medium">Buy Amount(SOL)</label>
               <div className="relative">
-                <Input placeholder="0.00001" />
+                <Input
+                  type="number"
+                  placeholder="0.00001"
+                  value={buyAmount}
+                  onChange={(e) => setBuyAmount(e.target.value)}
+                  min="0.00001"
+                  step="0.00001"
+                />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   SOL
                 </span>
@@ -147,32 +251,19 @@ const Index = () => {
             </div>
           </div>
 
-          <JitoTip />
+          <JitoTip onTipChange={setJitoTip} />
 
-          <Alert className="bg-orange-50 border-orange-200">
-            <AlertDescription className="flex items-center justify-between text-orange-800">
-              <span>
-                The cost for each new address buy is primarily the Jito fee. Please
-                adjust in real-time based on network congestion. Do not refresh
-                after the feature is enabled, as this will interrupt the service.
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-orange-800 hover:text-orange-900"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </AlertDescription>
-          </Alert>
-
-          <div className="flex flex-col items-center gap-2">
-            <Button className="bg-primary hover:bg-primary/90 text-white w-40">
-              Start
+          <div className="flex flex-col items-center gap-2 mt-6">
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white w-40"
+              onClick={handleBatchTransaction}
+              disabled={isProcessing || !privateKey}
+            >
+              {isProcessing ? "Processing..." : "Start"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              The lowest service fee in the market, with each new address buy
-              costing only 0.00009 SOL.
+              The lowest service fee in the market, with each new address buy costing
+              only 0.00009 SOL.
             </p>
           </div>
         </div>
