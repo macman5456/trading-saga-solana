@@ -9,6 +9,7 @@ interface TransactionProcessorProps {
   privateKey: string;
   addressCount: number;
   buyAmount: number;
+  jitoTip: number;
   selectedToken: string;
   onSuccess: (wallets: any[]) => void;
   onProcessedCountChange: (count: number) => void;
@@ -18,6 +19,7 @@ const TransactionProcessor = ({
   privateKey,
   addressCount,
   buyAmount,
+  jitoTip,
   selectedToken,
   onSuccess,
   onProcessedCountChange,
@@ -35,13 +37,27 @@ const TransactionProcessor = ({
 
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     
-    const transaction = new Transaction().add(
+    const transaction = new Transaction();
+
+    // Add transfer to new wallet
+    transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
         toPubkey: newWallet.publicKey,
         lamports: amount * LAMPORTS_PER_SOL,
       })
     );
+
+    // Add Jito tip if specified
+    if (jitoTip > 0) {
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+          lamports: jitoTip * LAMPORTS_PER_SOL,
+        })
+      );
+    }
 
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
@@ -79,7 +95,7 @@ const TransactionProcessor = ({
       console.error("Transaction error:", error);
       throw new Error(`Transaction failed: ${error.message}`);
     }
-  }, [connection]);
+  }, [connection, jitoTip]);
 
   const handleStartTransaction = async () => {
     try {

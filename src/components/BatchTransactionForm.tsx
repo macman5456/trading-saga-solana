@@ -5,6 +5,7 @@ import WalletInputSection from "./batch-transaction/WalletInputSection";
 import TransactionControls from "./batch-transaction/TransactionControls";
 import TransactionProcessor from "./batch-transaction/TransactionProcessor";
 import { validatePrivateKey } from "@/utils/walletOperations";
+import JitoTip from "./JitoTip";
 
 interface WalletInfo {
   publicKey: string;
@@ -30,6 +31,7 @@ const BatchTransactionForm = ({
   const [tokenBalance, setTokenBalance] = useState("0");
   const [addressCount, setAddressCount] = useState(1);
   const [buyAmount, setBuyAmount] = useState("0.00001");
+  const [jitoTip, setJitoTip] = useState("0.00015"); // Default to Ultra-High
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
 
@@ -55,6 +57,7 @@ const BatchTransactionForm = ({
     privateKey,
     addressCount,
     buyAmount: parseFloat(buyAmount),
+    jitoTip: parseFloat(jitoTip),
     selectedToken,
     onSuccess: onWalletsGenerated,
     onProcessedCountChange: onSuccessCountChange,
@@ -73,6 +76,8 @@ const BatchTransactionForm = ({
         balanceError={balanceError}
         onPrivateKeyChange={setPrivateKey}
       />
+
+      <JitoTip onTipChange={setJitoTip} />
 
       <TransactionControls
         addressCount={addressCount}
