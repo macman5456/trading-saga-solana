@@ -21,11 +21,11 @@ export const processTransaction = async (
     // Calculate amounts in lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalAmount = buyAmountLamports + rentExemption;
+    const totalAmount = buyAmountLamports;
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    const requiredBalance = totalAmount + jitoTipLamports + 5000; // Adding 5000 lamports for fee
+    const requiredBalance = totalAmount + jitoTipLamports + rentExemption + 5000; // Adding 5000 lamports for fee
 
     console.log("\nBalance check:", {
       sourceBalance: sourceBalance / LAMPORTS_PER_SOL,
@@ -46,14 +46,21 @@ export const processTransaction = async (
     // Create transaction
     const transaction = new Transaction();
 
-    // Add create account instruction
+    // First transfer rent exemption
     transaction.add(
-      SystemProgram.createAccount({
+      SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
-        newAccountPubkey: newWallet.publicKey,
-        lamports: totalAmount,
-        space: 0,
-        programId: SystemProgram.programId,
+        toPubkey: newWallet.publicKey,
+        lamports: rentExemption,
+      })
+    );
+
+    // Then transfer buy amount
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: sourceWallet.publicKey,
+        toPubkey: newWallet.publicKey,
+        lamports: buyAmountLamports,
       })
     );
 
@@ -72,19 +79,11 @@ export const processTransaction = async (
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Sign transaction with both wallets
-    transaction.sign(sourceWallet, newWallet);
+    // Sign transaction
+    transaction.sign(sourceWallet);
 
     console.log("Sending transaction...");
     
-    // Simulate transaction first
-    const simulation = await connection.simulateTransaction(transaction);
-    console.log("Simulation result:", simulation.value);
-
-    if (simulation.value.err) {
-      throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-    }
-
     // Send and confirm transaction
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
