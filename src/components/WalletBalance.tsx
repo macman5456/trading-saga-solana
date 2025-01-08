@@ -12,6 +12,7 @@ interface WalletBalanceProps {
 const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   const [solBalance, setSolBalance] = useState<number>(0);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { connection } = useConnection();
 
@@ -22,6 +23,8 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
         setTokenBalance(0);
         return;
       }
+
+      setIsLoading(true);
 
       try {
         // Validate public key format first
@@ -35,6 +38,7 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
             description: "Invalid wallet address format",
             variant: "destructive",
           });
+          setIsLoading(false);
           return;
         }
 
@@ -47,6 +51,11 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
         const newSolBalance = balance / LAMPORTS_PER_SOL;
         setSolBalance(newSolBalance);
         onBalanceUpdate(newSolBalance, 0); // Update parent component
+        
+        toast({
+          title: "Success",
+          description: "Wallet balance updated successfully",
+        });
       } catch (error) {
         console.error("Error fetching balance:", error);
         toast({
@@ -54,6 +63,8 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
           description: "Failed to fetch wallet balance. Please check your connection and try again.",
           variant: "destructive",
         });
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -68,13 +79,23 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <label className="text-sm font-medium flex items-center gap-1">
-          SOL Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+          SOL Balance 
+          {isLoading ? (
+            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+          ) : (
+            <span className="w-2 h-2 bg-green-500 rounded-full" />
+          )}
         </label>
         <Input disabled value={solBalance.toFixed(4)} />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium flex items-center gap-1">
-          TOKEN Balance <span className="w-2 h-2 bg-green-500 rounded-full" />
+          TOKEN Balance 
+          {isLoading ? (
+            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+          ) : (
+            <span className="w-2 h-2 bg-green-500 rounded-full" />
+          )}
         </label>
         <Input disabled value={tokenBalance.toFixed(4)} />
       </div>

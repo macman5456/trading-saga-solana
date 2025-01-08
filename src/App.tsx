@@ -10,6 +10,7 @@ import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { useState, useMemo } from "react";
 import RPCConfig from "./components/RPCConfig";
+import { clusterApiUrl } from "@solana/web3.js";
 
 // Import wallet adapter CSS
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -17,7 +18,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [endpoint, setEndpoint] = useState("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com");
+  const [endpoint, setEndpoint] = useState(clusterApiUrl("mainnet-beta"));
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
@@ -27,15 +28,17 @@ const App = () => {
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
-              <div className="container mx-auto p-4">
-                <RPCConfig onRPCChange={setEndpoint} />
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                  </Routes>
-                </BrowserRouter>
+              <div className="min-h-screen bg-background">
+                <div className="container mx-auto p-4">
+                  <RPCConfig onRPCChange={setEndpoint} />
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                    </Routes>
+                  </BrowserRouter>
+                </div>
               </div>
             </TooltipProvider>
           </QueryClientProvider>
