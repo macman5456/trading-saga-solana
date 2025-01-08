@@ -48,7 +48,6 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
 
         if (isSubscribed) {
           setTokens(prevTokens => {
-            // Keep custom tokens and add SOL
             const customTokens = prevTokens.filter(token => token.address !== "SOL");
             return [
               {
@@ -61,12 +60,24 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
         }
       } catch (error) {
         console.error("Error fetching tokens:", error);
-        if (isSubscribed && connected) {
-          toast({
-            title: "Error",
-            description: "Failed to fetch wallet tokens",
-            variant: "destructive",
-          });
+        // Only show error toast if the wallet is connected and the component is still mounted
+        if (isSubscribed && connected && error instanceof Error) {
+          // Check if the error is a network-related error
+          if (error.message.includes("failed to fetch") || error.message.includes("network error")) {
+            console.log("Network error occurred, retrying in 5 seconds...");
+            // Retry after 5 seconds
+            setTimeout(() => {
+              if (connected) {
+                fetchWalletTokens();
+              }
+            }, 5000);
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to fetch wallet tokens. Please try again.",
+              variant: "destructive",
+            });
+          }
         }
       }
     };
