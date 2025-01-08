@@ -21,7 +21,7 @@ export const processTransaction = async (
     // Calculate amounts in lamports
     const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalTransferAmount = buyAmountLamports + rentExemption;
+    const totalTransferAmount = buyAmountLamports;
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
@@ -46,12 +46,14 @@ export const processTransaction = async (
     // Create transaction
     const transaction = new Transaction();
 
-    // Single transfer instruction with total amount (including rent)
+    // Create account instruction
     transaction.add(
-      SystemProgram.transfer({
+      SystemProgram.createAccount({
         fromPubkey: sourceWallet.publicKey,
-        toPubkey: newWallet.publicKey,
-        lamports: totalTransferAmount,
+        newAccountPubkey: newWallet.publicKey,
+        lamports: rentExemption + totalTransferAmount,
+        space: 0,
+        programId: SystemProgram.programId,
       })
     );
 
@@ -70,8 +72,8 @@ export const processTransaction = async (
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
 
-    // Sign transaction with source wallet only
-    transaction.sign(sourceWallet);
+    // Sign transaction with both wallets
+    transaction.sign(sourceWallet, newWallet);
 
     console.log("Sending transaction...");
     
