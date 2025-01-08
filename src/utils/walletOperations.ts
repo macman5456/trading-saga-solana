@@ -6,6 +6,7 @@ const RENT_EXEMPTION = 2039280;
 
 export const validatePrivateKey = (privateKey: string): Keypair | null => {
   try {
+    if (!privateKey) return null;
     const decodedKey = bs58.decode(privateKey);
     return Keypair.fromSecretKey(decodedKey);
   } catch (error) {
@@ -19,8 +20,9 @@ export const checkWalletBalance = async (
   wallet: Keypair
 ): Promise<number> => {
   try {
+    console.log("Checking balance for wallet:", wallet.publicKey.toString());
     const balance = await connection.getBalance(wallet.publicKey);
-    console.log("Wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
+    console.log("Retrieved wallet balance:", balance / LAMPORTS_PER_SOL, "SOL");
     return balance;
   } catch (error) {
     console.error("Error checking wallet balance:", error);

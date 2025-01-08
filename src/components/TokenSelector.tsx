@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 
 interface TokenSelectorProps {
@@ -18,17 +18,27 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
   const [selectedToken, setSelectedToken] = useState("");
   const { toast } = useToast();
 
-  const connection = new Connection("https://georgianna-k21s7o-fast-mainnet.helius-rpc.com");
+  const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
   useEffect(() => {
     const fetchWalletTokens = async () => {
       if (connected && publicKey) {
         try {
+          console.log("Fetching tokens for wallet:", publicKey.toString());
+          const balance = await connection.getBalance(publicKey);
+          console.log("SOL Balance:", balance / LAMPORTS_PER_SOL);
+          
           toast({
             title: "Wallet Connected",
             description: "Scanning for tokens in your wallet...",
           });
-          setTokens([]);
+
+          // For now, just add SOL as a token
+          setTokens([{
+            address: "SOL",
+            symbol: "SOL"
+          }]);
+
         } catch (error) {
           console.error("Error fetching tokens:", error);
           toast({
@@ -43,7 +53,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
     };
 
     fetchWalletTokens();
-  }, [connected, publicKey]);
+  }, [connected, publicKey, connection]);
 
   const handleCustomTokenAdd = () => {
     try {
@@ -73,7 +83,7 @@ const TokenSelector = ({ onTokenSelect }: TokenSelectorProps) => {
 
   const handleTokenSelect = (value: string) => {
     setSelectedToken(value);
-    onTokenSelect(value); // Notify parent component about token selection
+    onTokenSelect(value);
   };
 
   return (

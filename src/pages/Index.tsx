@@ -7,9 +7,9 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import { X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey, Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
-import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
+import { validatePrivateKey, checkWalletBalance } from "@/utils/walletOperations";
 
 const Index = () => {
   const [privateKey, setPrivateKey] = useState("");
@@ -28,6 +28,25 @@ const Index = () => {
     "confirmed"
   );
 
+  const updateBalances = async (keypair: Keypair) => {
+    try {
+      console.log("Updating balances for wallet:", keypair.publicKey.toString());
+      const balance = await checkWalletBalance(connection, keypair);
+      console.log("Updated SOL balance:", balance / LAMPORTS_PER_SOL);
+      setSolBalance(balance / LAMPORTS_PER_SOL);
+      
+      // For now, we'll set token balance to 0 since we're not tracking specific tokens yet
+      setTokenBalance(0);
+    } catch (error) {
+      console.error("Error updating balances:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update wallet balances",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPrivateKey(value);
@@ -43,19 +62,7 @@ const Index = () => {
     if (keypair) {
       const pubKey = keypair.publicKey.toString();
       setPublicKey(pubKey);
-      
-      try {
-        const balance = await checkWalletBalance(connection, keypair);
-        console.log("Retrieved SOL balance:", balance / LAMPORTS_PER_SOL);
-        setSolBalance(balance / LAMPORTS_PER_SOL);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch wallet balance",
-          variant: "destructive",
-        });
-      }
+      await updateBalances(keypair);
     } else {
       setPublicKey("");
       setSolBalance(0);
