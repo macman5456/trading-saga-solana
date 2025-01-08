@@ -60,7 +60,8 @@ const TransactionProcessor = ({
       );
 
       // Sign transaction - fixed the signing process
-      transaction.sign([sourceWallet, newWallet]);
+      transaction.partialSign(sourceWallet);
+      transaction.partialSign(newWallet);
       
       const rawTransaction = transaction.serialize();
       
