@@ -114,7 +114,8 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
           mainWallet.publicKey
         );
 
-        onSuccessCountChange((prev) => prev + 1);
+        // Update the success count directly with a number instead of a function
+        onSuccessCountChange(i + 1);
         
         toast({
           title: "Success",
