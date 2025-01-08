@@ -10,11 +10,12 @@ export const calculateTransferAmount = async (
   console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
 
   // Calculate transfer amount including rent exemption
-  const transferAmount = Math.floor(buyAmount * LAMPORTS_PER_SOL) + rentExemption;
+  const transferAmount = Math.floor(buyAmount * LAMPORTS_PER_SOL);
   const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-  const totalRequired = transferAmount + jitoTipLamports + 5000; // Adding 5000 lamports for transaction fee
+  const totalRequired = transferAmount + jitoTipLamports + rentExemption + 5000; // Adding 5000 lamports for transaction fee
 
-  console.log("Total amount required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
+  console.log("Transfer amount:", transferAmount / LAMPORTS_PER_SOL, "SOL");
+  console.log("Total amount required (with rent):", totalRequired / LAMPORTS_PER_SOL, "SOL");
   
   return { transferAmount, totalRequired };
 };
