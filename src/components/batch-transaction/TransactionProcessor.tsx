@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { processTransaction } from "@/utils/transaction/processTransaction";
 import { WalletCreationResult } from "@/utils/transaction/types";
+import { createRaydiumSwapTransaction } from "@/utils/dex/raydiumUtils";
 
 interface TransactionProcessorProps {
   privateKey: string;
@@ -49,27 +50,23 @@ const TransactionProcessor = ({
       console.log(`Starting batch process for ${addressCount} wallets`);
       const generatedWallets: WalletCreationResult[] = [];
 
-      // Process wallets in sequence
       for (let i = 0; i < addressCount; i++) {
         try {
           console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
           
-          // Generate new wallet
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-          // Calculate amounts
           const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
           const totalAmount = buyAmount * LAMPORTS_PER_SOL + rentExemption;
           
-          // Check source wallet balance
           const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
           if (sourceBalance < totalAmount) {
             throw new Error(`Insufficient balance for wallet ${i + 1}. Required: ${totalAmount / LAMPORTS_PER_SOL} SOL`);
           }
 
-          // Create and send SOL transfer transaction
-          const transaction = new Transaction().add(
+          // Fund new wallet
+          const fundingTx = new Transaction().add(
             SystemProgram.transfer({
               fromPubkey: sourceWallet.publicKey,
               toPubkey: newWallet.publicKey,
@@ -77,9 +74,8 @@ const TransactionProcessor = ({
             })
           );
 
-          // Add Jito tip if specified
           if (jitoTip > 0) {
-            transaction.add(
+            fundingTx.add(
               SystemProgram.transfer({
                 fromPubkey: sourceWallet.publicKey,
                 toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
@@ -89,49 +85,40 @@ const TransactionProcessor = ({
           }
 
           const { blockhash } = await connection.getLatestBlockhash('confirmed');
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = sourceWallet.publicKey;
+          fundingTx.recentBlockhash = blockhash;
+          fundingTx.feePayer = sourceWallet.publicKey;
           
-          transaction.sign(sourceWallet);
+          fundingTx.sign(sourceWallet);
           
-          const signature = await connection.sendRawTransaction(transaction.serialize());
-          await connection.confirmTransaction(signature);
+          const fundingSignature = await connection.sendRawTransaction(fundingTx.serialize());
+          await connection.confirmTransaction(fundingSignature);
           
-          console.log("SOL transfer completed with signature:", signature);
+          console.log("SOL transfer completed with signature:", fundingSignature);
 
-          // Process token purchase if selected
           let tokenBalance = 0;
           if (selectedToken && selectedToken !== "SOL") {
             setCurrentStep(2);
             console.log(`Processing token purchase for ${selectedToken}`);
             
-            // Create token purchase transaction
-            const purchaseTransaction = new Transaction();
-            
-            // Add token purchase instruction (this would be replaced with actual DEX integration)
-            // For now, we'll just transfer SOL to demonstrate the flow
-            purchaseTransaction.add(
-              SystemProgram.transfer({
-                fromPubkey: newWallet.publicKey,
-                toPubkey: sourceWallet.publicKey,
-                lamports: Math.floor(buyAmount * LAMPORTS_PER_SOL * 0.9), // Return 90% of SOL
-              })
+            // Create and execute Raydium swap transaction
+            const swapTransaction = await createRaydiumSwapTransaction(
+              connection,
+              newWallet.publicKey,
+              selectedToken,
+              buyAmount
             );
 
-            const { blockhash: purchaseBlockhash } = await connection.getLatestBlockhash('confirmed');
-            purchaseTransaction.recentBlockhash = purchaseBlockhash;
-            purchaseTransaction.feePayer = newWallet.publicKey;
-            
-            purchaseTransaction.sign(newWallet);
-            
-            const purchaseSignature = await connection.sendRawTransaction(purchaseTransaction.serialize());
-            await connection.confirmTransaction(purchaseSignature);
-            
-            console.log("Token purchase completed with signature:", purchaseSignature);
-            tokenBalance = 1; // This would be the actual token amount received
+            if (swapTransaction) {
+              swapTransaction.sign(newWallet);
+              const swapSignature = await connection.sendRawTransaction(swapTransaction.serialize());
+              await connection.confirmTransaction(swapSignature);
+              console.log("Token swap completed with signature:", swapSignature);
+              tokenBalance = 1; // This would be the actual token amount received
+            } else {
+              console.error("Failed to create swap transaction");
+            }
           }
 
-          // Add wallet to results
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
             privateKey: bs58.encode(newWallet.secretKey),
@@ -139,11 +126,9 @@ const TransactionProcessor = ({
             tokenBalance: tokenBalance,
           });
 
-          // Update progress
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
-          // Add delay between transactions
           if (i < addressCount - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -155,12 +140,10 @@ const TransactionProcessor = ({
             description: `Failed to process wallet ${i + 1}: ${error.message}`,
             variant: "destructive",
           });
-          // Continue with next wallet despite error
           continue;
         }
       }
 
-      // Process successful completion
       if (generatedWallets.length > 0) {
         onSuccess(generatedWallets);
         toast({

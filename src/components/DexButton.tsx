@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { findRaydiumPool } from "@/utils/dex/raydiumUtils";
+import { useConnection } from "@solana/wallet-adapter-react";
 
 interface DexButtonProps {
   id: string;
@@ -10,9 +12,19 @@ interface DexButtonProps {
 }
 
 const DexButton = ({ id, name, icon, isSelected, isConnecting, onClick }: DexButtonProps) => {
+  const { connection } = useConnection();
+
+  const handleClick = async () => {
+    if (id === "raydium") {
+      // Additional Raydium-specific initialization could go here
+      console.log("Initializing Raydium DEX");
+    }
+    onClick();
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       disabled={isConnecting}
       className={cn(
         "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
