@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, SystemProgram, Transaction } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
 import { validateWalletBalance } from "@/utils/transaction/balanceCheck";
@@ -57,18 +57,27 @@ const TransactionProcessor = ({
         throw new Error("Please select a token first");
       }
 
-      // Validate wallet balance
-      await validateWalletBalance(connection, sourceWallet, addressCount, buyAmount, jitoTip);
+      // Get rent exemption amount
+      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+      console.log("Rent exemption required:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+
+      // Validate wallet balance including rent exemption
+      const totalRequired = addressCount * (
+        (buyAmount * LAMPORTS_PER_SOL) + 
+        rentExemption + 
+        (jitoTip * LAMPORTS_PER_SOL) +
+        5000 // Additional buffer for transaction fees
+      );
+
+      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
+      console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+      
+      if (sourceBalance < totalRequired) {
+        throw new Error(`Insufficient funds. Required: ${(totalRequired / LAMPORTS_PER_SOL).toFixed(6)} SOL, Available: ${(sourceBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL`);
+      }
 
       setCurrentStep(1);
       const generatedWallets: WalletCreationResult[] = [];
-
-      const config: TransactionConfig = {
-        sourceWallet,
-        amount: buyAmount,
-        jitoTip,
-        connection,
-      };
 
       for (let i = 0; i < addressCount; i++) {
         try {
@@ -78,13 +87,45 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("New wallet public key:", newWallet.publicKey.toString());
 
-          // Build and simulate transaction
-          const { transaction, blockhash } = await buildFundingTransaction(
-            newWallet.publicKey,
-            config
+          // Calculate exact amount to send including rent exemption
+          const transferAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption;
+          
+          // Create transaction
+          const transaction = new Transaction();
+          
+          // Add transfer instruction with exact amount including rent
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: sourceWallet.publicKey,
+              toPubkey: newWallet.publicKey,
+              lamports: transferAmount,
+            })
           );
 
-          await simulateTransaction(transaction, connection, sourceWallet);
+          // Add Jito tip if specified
+          if (jitoTip > 0) {
+            transaction.add(
+              SystemProgram.transfer({
+                fromPubkey: sourceWallet.publicKey,
+                toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+                lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+              })
+            );
+          }
+
+          // Get latest blockhash
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = sourceWallet.publicKey;
+
+          // Simulate transaction before sending
+          console.log("Simulating transaction for wallet:", newWallet.publicKey.toString());
+          const simulation = await connection.simulateTransaction(transaction);
+          
+          if (simulation.value.err) {
+            console.error("Simulation error:", simulation.value.err);
+            throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+          }
 
           // Sign and send transaction
           transaction.sign(sourceWallet);
