@@ -5,10 +5,11 @@ import TokenSelector from "./TokenSelector";
 import DexSelector from "./DexSelector";
 import AddressCounter from "./AddressCounter";
 import JitoTip from "./JitoTip";
-import WalletBalance from "./WalletBalance";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
-import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { Input } from "./ui/input";
+import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import PrivateKeyInput from "./form/PrivateKeyInput";
+import AddressDisplay from "./form/AddressDisplay";
+import BalanceDisplay from "./form/BalanceDisplay";
 
 interface WalletInfo {
   publicKey: string;
@@ -31,14 +32,18 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedDexEndpoint, setSelectedDexEndpoint] = useState<string>("https://api.mainnet-beta.solana.com");
+  const [solBalance, setSolBalance] = useState("0");
+  const [tokenBalance, setTokenBalance] = useState("0");
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const { toast } = useToast();
 
-  const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handlePrivateKeyChange = async (value: string) => {
     setPrivateKey(value);
     
     if (!value) {
       setPublicKey("");
+      setSolBalance("0");
+      setTokenBalance("0");
       return;
     }
 
@@ -46,18 +51,33 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
     if (keypair) {
       const pubKey = keypair.publicKey.toString();
       setPublicKey(pubKey);
+      
+      // Fetch balance
+      setIsLoadingBalance(true);
+      try {
+        const connection = new Connection(selectedDexEndpoint, "confirmed");
+        const balance = await checkWalletBalance(connection, keypair);
+        setSolBalance((balance / LAMPORTS_PER_SOL).toFixed(4));
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch wallet balance",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingBalance(false);
+      }
     } else {
       setPublicKey("");
+      setSolBalance("0");
+      setTokenBalance("0");
       toast({
         title: "Invalid Private Key",
         description: "Please enter a valid Solana private key",
         variant: "destructive",
       });
     }
-  };
-
-  const handleBalanceUpdate = (solBalance: number, tokenBalance: number) => {
-    console.log("Balance updated:", { solBalance, tokenBalance });
   };
 
   const handleBatchTransaction = async () => {
@@ -155,31 +175,19 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
       <TokenSelector onTokenSelect={setSelectedToken} />
 
       <div className="grid grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Private Key</label>
-          <Input 
-            type="password" 
-            placeholder="Enter Private Key" 
-            value={privateKey}
-            onChange={handlePrivateKeyChange}
-          />
-        </div>
-        <div className="space-y-2 col-span-3">
-          <label className="text-sm font-medium">Address</label>
-          <Input 
-            disabled 
-            placeholder="Address will appear here" 
-            value={publicKey}
-          />
-        </div>
-      </div>
-
-      {publicKey && (
-        <WalletBalance 
-          publicKey={publicKey} 
-          onBalanceUpdate={handleBalanceUpdate}
+        <PrivateKeyInput value={privateKey} onChange={handlePrivateKeyChange} />
+        <AddressDisplay value={publicKey} />
+        <BalanceDisplay 
+          label="SOL Balance" 
+          value={solBalance}
+          isLoading={isLoadingBalance} 
         />
-      )}
+        <BalanceDisplay 
+          label="Token Balance" 
+          value={tokenBalance}
+          isLoading={isLoadingBalance} 
+        />
+      </div>
 
       <DexSelector 
         selectedToken={selectedToken} 
