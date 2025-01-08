@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import BatchTransactionHeader from "./batch-transaction/BatchTransactionHeader";
 import WalletInputSection from "./batch-transaction/WalletInputSection";
 import TransactionControls from "./batch-transaction/TransactionControls";
 import TransactionProcessor from "./batch-transaction/TransactionProcessor";
+import { validatePrivateKey } from "@/utils/walletOperations";
 
 interface WalletInfo {
   publicKey: string;
@@ -31,6 +32,19 @@ const BatchTransactionForm = ({
   const [buyAmount, setBuyAmount] = useState("0.00001");
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (privateKey) {
+      const keypair = validatePrivateKey(privateKey);
+      if (keypair) {
+        setPublicKey(keypair.publicKey.toString());
+      } else {
+        setPublicKey("");
+      }
+    } else {
+      setPublicKey("");
+    }
+  }, [privateKey]);
 
   const {
     handleStartTransaction,

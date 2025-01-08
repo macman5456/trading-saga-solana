@@ -18,7 +18,6 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
 
   const isValidBase58 = (str: string) => {
     try {
-      // Try to create a PublicKey - this will validate the base58 string
       new PublicKey(str);
       return true;
     } catch {
@@ -31,6 +30,7 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
       console.log("Invalid or missing public key:", publicKey);
       setSolBalance(0);
       setTokenBalance(0);
+      onBalanceUpdate(0, 0);
       return;
     }
 
@@ -65,13 +65,12 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   }, [publicKey, connection, onBalanceUpdate, toast]);
 
   useEffect(() => {
-    fetchBalance();
-    
-    // Set up an interval to refresh the balance every 30 seconds
-    const interval = setInterval(fetchBalance, 30000);
-    
-    return () => clearInterval(interval);
-  }, [fetchBalance]);
+    if (publicKey) {
+      fetchBalance();
+      const interval = setInterval(fetchBalance, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [fetchBalance, publicKey]);
 
   return (
     <div className="grid grid-cols-2 gap-4">

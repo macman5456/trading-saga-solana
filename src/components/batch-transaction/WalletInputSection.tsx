@@ -2,6 +2,7 @@ import React from "react";
 import PrivateKeyInput from "../form/PrivateKeyInput";
 import AddressDisplay from "../form/AddressDisplay";
 import BalanceDisplay from "../form/BalanceDisplay";
+import WalletBalance from "../WalletBalance";
 
 interface WalletInputSectionProps {
   privateKey: string;
@@ -16,27 +17,21 @@ interface WalletInputSectionProps {
 const WalletInputSection = ({
   privateKey,
   publicKey,
-  solBalance,
-  tokenBalance,
   isLoadingBalance,
   balanceError,
   onPrivateKeyChange,
 }: WalletInputSectionProps) => {
+  const handleBalanceUpdate = (solBalance: number, tokenBalance: number) => {
+    console.log("Balance updated:", { solBalance, tokenBalance });
+  };
+
   return (
     <div className="grid grid-cols-4 gap-4">
       <PrivateKeyInput value={privateKey} onChange={onPrivateKeyChange} />
       <AddressDisplay value={publicKey} />
-      <BalanceDisplay
-        label="SOL Balance"
-        value={solBalance}
-        isLoading={isLoadingBalance}
-        error={balanceError || undefined}
-      />
-      <BalanceDisplay
-        label="Token Balance"
-        value={tokenBalance}
-        isLoading={isLoadingBalance}
-        error={balanceError || undefined}
+      <WalletBalance 
+        publicKey={publicKey} 
+        onBalanceUpdate={handleBalanceUpdate}
       />
     </div>
   );
