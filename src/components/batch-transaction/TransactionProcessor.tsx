@@ -34,6 +34,7 @@ const TransactionProcessor = ({
   const createAndFundWallet = useCallback(async (sourceWallet: Keypair, amount: number) => {
     const newWallet = Keypair.generate();
     console.log("Creating new wallet:", newWallet.publicKey.toString());
+    console.log("Amount to transfer:", amount, "SOL");
 
     // Get the minimum rent exemption amount
     const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
@@ -41,9 +42,10 @@ const TransactionProcessor = ({
 
     // Calculate total amount needed including rent exemption
     const totalAmount = amount * LAMPORTS_PER_SOL + rentExemption;
-    console.log("Total amount needed:", totalAmount / LAMPORTS_PER_SOL, "SOL");
+    console.log("Total amount to transfer (including rent):", totalAmount / LAMPORTS_PER_SOL, "SOL");
 
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    console.log("Got blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
     
     const transaction = new Transaction();
 
@@ -58,6 +60,7 @@ const TransactionProcessor = ({
 
     // Add Jito tip if specified
     if (jitoTip > 0) {
+      console.log("Adding Jito tip:", jitoTip, "SOL");
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: sourceWallet.publicKey,
@@ -73,7 +76,11 @@ const TransactionProcessor = ({
     try {
       // Calculate required balance for the entire transaction
       const simulation = await connection.simulateTransaction(transaction);
-      console.log("Transaction simulation result:", simulation);
+      console.log("Transaction simulation details:", {
+        error: simulation.value.err,
+        unitsConsumed: simulation.value.unitsConsumed,
+        logs: simulation.value.logs
+      });
 
       if (simulation.value.err) {
         throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
@@ -82,7 +89,7 @@ const TransactionProcessor = ({
       // Sign and send the transaction
       transaction.sign(sourceWallet);
       const signature = await connection.sendRawTransaction(transaction.serialize());
-      console.log("Transaction sent:", signature);
+      console.log("Transaction sent with signature:", signature);
 
       // Wait for confirmation
       const confirmation = await connection.confirmTransaction({
@@ -95,12 +102,13 @@ const TransactionProcessor = ({
         throw new Error(`Transaction failed: ${confirmation.value.err}`);
       }
 
+      console.log("Transaction confirmed successfully");
       return {
         publicKey: newWallet.publicKey.toString(),
         privateKey: bs58.encode(newWallet.secretKey),
       };
     } catch (error: any) {
-      console.error("Transaction error:", error);
+      console.error("Detailed transaction error:", error);
       throw new Error(`Transaction failed: ${error.message}`);
     }
   }, [connection, jitoTip]);
@@ -108,12 +116,20 @@ const TransactionProcessor = ({
   const handleStartTransaction = async () => {
     try {
       console.log("Starting transaction process...");
+      console.log("Parameters:", {
+        addressCount,
+        buyAmount,
+        jitoTip,
+        selectedToken
+      });
+      
       setIsProcessing(true);
       setCurrentStep(0);
       setProcessedWallets(0);
 
       const decodedKey = bs58.decode(privateKey);
       const sourceWallet = Keypair.fromSecretKey(decodedKey);
+      console.log("Source wallet public key:", sourceWallet.publicKey.toString());
       
       if (!sourceWallet) {
         throw new Error("Invalid private key provided");
@@ -134,6 +150,13 @@ const TransactionProcessor = ({
         rentExemption + 
         (jitoTip * LAMPORTS_PER_SOL)
       );
+
+      console.log("Transaction requirements:", {
+        rentExemptionPerWallet: rentExemption / LAMPORTS_PER_SOL,
+        totalRequired: totalRequired / LAMPORTS_PER_SOL,
+        availableBalance: balance / LAMPORTS_PER_SOL,
+        perWalletCost: ((buyAmount * LAMPORTS_PER_SOL) + rentExemption + (jitoTip * LAMPORTS_PER_SOL)) / LAMPORTS_PER_SOL
+      });
 
       if (balance < totalRequired) {
         throw new Error(`Insufficient funds. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${balance / LAMPORTS_PER_SOL} SOL`);
