@@ -1,17 +1,14 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import TokenSelector from "./TokenSelector";
 import DexSelector from "./DexSelector";
-import AddressCounter from "./AddressCounter";
 import JitoTip from "./JitoTip";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import PrivateKeyInput from "./form/PrivateKeyInput";
-import AddressDisplay from "./form/AddressDisplay";
-import BalanceDisplay from "./form/BalanceDisplay";
 import WalletManagement from "./wallet/WalletManagement";
+import BatchTransactionHeader from "./batch-transaction/BatchTransactionHeader";
+import WalletInputSection from "./batch-transaction/WalletInputSection";
+import TransactionControls from "./batch-transaction/TransactionControls";
 
 interface WalletInfo {
   publicKey: string;
@@ -59,7 +56,6 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
       const pubKey = keypair.publicKey.toString();
       setPublicKey(pubKey);
       
-      // Fetch balance
       setIsLoadingBalance(true);
       try {
         const connection = new Connection(selectedDexEndpoint, {
@@ -160,7 +156,6 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         });
       }
 
-      // Update both local and parent state
       setWallets(prevWallets => [...prevWallets, ...newWallets]);
       onWalletsGenerated(newWallets);
 
@@ -183,74 +178,31 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Batch Transactions (Mainnet)</h1>
-        <p className="text-muted-foreground">
-          Automatically create new wallet addresses, complete the buy transaction,
-          transfer to the main wallet, and close the account.
-        </p>
-      </div>
-
+      <BatchTransactionHeader />
       <TokenSelector onTokenSelect={setSelectedToken} />
-
-      <div className="grid grid-cols-4 gap-4">
-        <PrivateKeyInput value={privateKey} onChange={handlePrivateKeyChange} />
-        <AddressDisplay value={publicKey} />
-        <BalanceDisplay 
-          label="SOL Balance" 
-          value={solBalance}
-          isLoading={isLoadingBalance}
-          error={balanceError || undefined}
-        />
-        <BalanceDisplay 
-          label="Token Balance" 
-          value={tokenBalance}
-          isLoading={isLoadingBalance}
-          error={balanceError || undefined}
-        />
-      </div>
-
+      <WalletInputSection
+        privateKey={privateKey}
+        publicKey={publicKey}
+        solBalance={solBalance}
+        tokenBalance={tokenBalance}
+        isLoadingBalance={isLoadingBalance}
+        balanceError={balanceError}
+        onPrivateKeyChange={handlePrivateKeyChange}
+      />
       <DexSelector 
         selectedToken={selectedToken} 
         onDexSelect={(dexId, endpoint) => setSelectedDexEndpoint(endpoint)}
       />
-
-      <div className="grid grid-cols-2 gap-4">
-        <AddressCounter onCountChange={setAddressCount} />
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Buy Amount(SOL)</label>
-          <div className="relative">
-            <Input
-              type="number"
-              placeholder="0.00001"
-              value={buyAmount}
-              onChange={(e) => setBuyAmount(e.target.value)}
-              min="0.00001"
-              step="0.00001"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              SOL
-            </span>
-          </div>
-        </div>
-      </div>
-
+      <TransactionControls
+        addressCount={addressCount}
+        buyAmount={buyAmount}
+        isProcessing={isProcessing}
+        disabled={!privateKey}
+        onAddressCountChange={setAddressCount}
+        onBuyAmountChange={setBuyAmount}
+        onStartTransaction={handleBatchTransaction}
+      />
       <JitoTip onTipChange={setJitoTip} />
-
-      <div className="flex flex-col items-center gap-2">
-        <Button
-          className="bg-primary hover:bg-primary/90 text-white w-40"
-          onClick={handleBatchTransaction}
-          disabled={isProcessing || !privateKey}
-        >
-          {isProcessing ? "Processing..." : "Start"}
-        </Button>
-        <p className="text-sm text-muted-foreground">
-          The lowest service fee in the market, with each new address buy costing
-          only 0.00009 SOL.
-        </p>
-      </div>
-
       <WalletManagement 
         wallets={wallets}
         onWalletsImported={handleWalletsImported}
