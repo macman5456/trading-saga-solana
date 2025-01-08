@@ -16,8 +16,19 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
   const { toast } = useToast();
   const { connection } = useConnection();
 
+  const isValidBase58 = (str: string) => {
+    try {
+      // Try to create a PublicKey - this will validate the base58 string
+      new PublicKey(str);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const fetchBalance = useCallback(async () => {
-    if (!publicKey) {
+    if (!publicKey || !isValidBase58(publicKey)) {
+      console.log("Invalid or missing public key:", publicKey);
       setSolBalance(0);
       setTokenBalance(0);
       return;
@@ -42,7 +53,7 @@ const WalletBalance = ({ publicKey, onBalanceUpdate }: WalletBalanceProps) => {
       console.error("Error fetching balance:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch wallet balance",
+        description: "Failed to fetch wallet balance: " + error.message,
         variant: "destructive",
       });
       setSolBalance(0);
