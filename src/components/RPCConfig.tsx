@@ -16,14 +16,11 @@ interface RPCConfigProps {
   defaultEndpoint: string;
 }
 
+// Only include reliable RPC endpoints
 const DEFAULT_RPC_ENDPOINTS = [
   {
     name: "GenesysGo",
     url: "https://ssc-dao.genesysgo.net",
-  },
-  {
-    name: "Mainnet Beta",
-    url: "https://api.mainnet-beta.solana.com",
   },
   {
     name: "Custom",
@@ -49,9 +46,6 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
         commitment: 'confirmed' as Commitment,
         confirmTransactionInitialTimeout: 60000,
         disableRetryOnRateLimit: false,
-        httpHeaders: {
-          'Content-Type': 'application/json',
-        }
       });
       
       const version = await connection.getVersion();
@@ -71,23 +65,14 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       setIsConnected(false);
       setLatency(null);
       
-      let errorMessage = "Failed to connect to RPC endpoint.";
-      if (error.message.includes("403")) {
-        errorMessage = "Access denied. Switching to GenesysGo endpoint...";
-        // Automatically switch to GenesysGo if mainnet fails
-        const genesysGoUrl = "https://ssc-dao.genesysgo.net";
-        setSelectedEndpoint(genesysGoUrl);
-        checkConnection(genesysGoUrl);
-        return;
-      } else if (error.message.includes("timeout")) {
-        errorMessage = "Connection timed out. Please try again.";
-      } else if (error.message.includes("429")) {
-        errorMessage = "Rate limit exceeded. Switching to backup endpoint...";
-      }
+      // Always fallback to GenesysGo on connection errors
+      const genesysGoUrl = "https://ssc-dao.genesysgo.net";
+      setSelectedEndpoint(genesysGoUrl);
+      onRPCChange(genesysGoUrl);
       
       toast({
-        title: "RPC Connection Failed",
-        description: errorMessage,
+        title: "Connection Failed",
+        description: "Switching to GenesysGo endpoint for reliability",
         variant: "destructive",
       });
     } finally {

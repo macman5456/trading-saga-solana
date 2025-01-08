@@ -16,7 +16,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 const queryClient = new QueryClient();
 
-// Default RPC endpoint (GenesysGo is more reliable for high-volume requests)
+// GenesysGo is more reliable and doesn't require API keys
 const DEFAULT_RPC = "https://ssc-dao.genesysgo.net";
 
 const App = () => {
@@ -24,8 +24,15 @@ const App = () => {
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
+  // Configure connection settings
+  const connectionConfig = {
+    commitment: 'confirmed',
+    disableRetryOnRateLimit: false,
+    confirmTransactionInitialTimeout: 60000
+  };
+
   return (
-    <ConnectionProvider endpoint={endpoint} config={{ commitment: 'confirmed', wsEndpoint: endpoint }}>
+    <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
