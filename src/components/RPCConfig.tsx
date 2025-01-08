@@ -16,21 +16,16 @@ interface RPCConfigProps {
   defaultEndpoint: string;
 }
 
-// Only include reliable RPC endpoints
+// Only include GenesysGo as it's more reliable
 const DEFAULT_RPC_ENDPOINTS = [
   {
     name: "GenesysGo",
     url: "https://ssc-dao.genesysgo.net",
-  },
-  {
-    name: "Custom",
-    url: "",
-  },
+  }
 ];
 
 const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
   const [selectedEndpoint, setSelectedEndpoint] = useState(defaultEndpoint);
-  const [customRpcUrl, setCustomRpcUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [latency, setLatency] = useState<number | null>(null);
@@ -45,7 +40,6 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       const connection = new Connection(url, {
         commitment: 'confirmed' as Commitment,
         confirmTransactionInitialTimeout: 60000,
-        disableRetryOnRateLimit: false,
       });
       
       const version = await connection.getVersion();
@@ -58,21 +52,16 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       
       toast({
         title: "RPC Connected",
-        description: `Successfully connected to RPC endpoint`,
+        description: `Successfully connected to GenesysGo RPC endpoint`,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("RPC Connection error:", error);
       setIsConnected(false);
       setLatency(null);
       
-      // Always fallback to GenesysGo on connection errors
-      const genesysGoUrl = "https://ssc-dao.genesysgo.net";
-      setSelectedEndpoint(genesysGoUrl);
-      onRPCChange(genesysGoUrl);
-      
       toast({
         title: "Connection Failed",
-        description: "Switching to GenesysGo endpoint for reliability",
+        description: "Failed to connect to RPC endpoint",
         variant: "destructive",
       });
     } finally {
@@ -80,19 +69,8 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
     }
   };
 
-  const handleEndpointChange = (value: string) => {
-    if (value === "custom") {
-      setSelectedEndpoint("custom");
-    } else {
-      setSelectedEndpoint(value);
-      checkConnection(value);
-    }
-  };
-
   useEffect(() => {
-    if (selectedEndpoint && selectedEndpoint !== "custom") {
-      checkConnection(selectedEndpoint);
-    }
+    checkConnection(selectedEndpoint);
   }, []);
 
   return (
@@ -100,7 +78,10 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
       <div className="flex items-center gap-4">
         <Select
           value={selectedEndpoint}
-          onValueChange={handleEndpointChange}
+          onValueChange={(value) => {
+            setSelectedEndpoint(value);
+            checkConnection(value);
+          }}
         >
           <SelectTrigger className="w-[240px]">
             <SelectValue placeholder="Select RPC endpoint" />
@@ -109,32 +90,13 @@ const RPCConfig = ({ onRPCChange, defaultEndpoint }: RPCConfigProps) => {
             {DEFAULT_RPC_ENDPOINTS.map((endpoint) => (
               <SelectItem 
                 key={endpoint.name} 
-                value={endpoint.url || "custom"}
+                value={endpoint.url}
               >
                 {endpoint.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-
-        {selectedEndpoint === "custom" && (
-          <Input
-            placeholder="Enter custom RPC URL"
-            value={customRpcUrl}
-            onChange={(e) => setCustomRpcUrl(e.target.value)}
-            className="flex-1"
-            disabled={isLoading}
-          />
-        )}
-
-        {selectedEndpoint === "custom" && (
-          <Button 
-            onClick={() => checkConnection(customRpcUrl)}
-            disabled={isLoading || !customRpcUrl}
-          >
-            {isLoading ? "Connecting..." : "Connect"}
-          </Button>
-        )}
 
         <div className="flex items-center gap-2">
           <div

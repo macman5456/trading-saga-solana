@@ -25,10 +25,9 @@ const App = () => {
   const network = WalletAdapterNetwork.Mainnet;
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
-  // Configure connection settings
+  // Configure connection settings with proper typing
   const connectionConfig = {
     commitment: 'confirmed' as Commitment,
-    disableRetryOnRateLimit: false,
     confirmTransactionInitialTimeout: 60000
   };
 
