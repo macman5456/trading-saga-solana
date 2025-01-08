@@ -18,13 +18,12 @@ const Index = () => {
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const { toast } = useToast();
 
-  // Use a more reliable public RPC endpoint
-  const connection = new Connection("https://api.mainnet-beta.solana.com", {
+  // Use a reliable public RPC endpoint
+  const connection = new Connection("https://api.devnet.solana.com", {
     commitment: "confirmed",
-    wsEndpoint: "wss://api.mainnet-beta.solana.com/",
   });
 
-  const handlePrivateKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPrivateKey(value);
     
@@ -32,13 +31,20 @@ const Index = () => {
       if (value) {
         const decodedKey = bs58.decode(value);
         const keypair = Keypair.fromSecretKey(decodedKey);
-        setPublicKey(keypair.publicKey.toString());
+        const pubKey = keypair.publicKey.toString();
+        setPublicKey(pubKey);
+        
+        // Fetch balance immediately after setting public key
+        const balance = await connection.getBalance(keypair.publicKey);
+        console.log("Retrieved SOL balance:", balance);
+        setSolBalance(balance / LAMPORTS_PER_SOL);
       } else {
         setPublicKey("");
         setSolBalance(0);
         setTokenBalance(0);
       }
     } catch (error) {
+      console.error("Error processing private key:", error);
       setPublicKey("");
       setSolBalance(0);
       setTokenBalance(0);
@@ -172,6 +178,7 @@ const Index = () => {
       </div>
     </div>
   );
+
 };
 
 export default Index;
