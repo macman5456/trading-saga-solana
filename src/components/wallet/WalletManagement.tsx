@@ -1,18 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import WalletList from "../WalletList";
-import { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
-import { validatePrivateKey } from "@I'll add a "Refund All" button that will transfer funds from all generated wallets back to the main wallet. Since BatchTransactionForm.tsx is already quite large, I'll also refactor it into smaller components.
-
-<lov-code>
-First, let's create a new component for the wallet management section:
-
-<lov-write file_path="src/components/wallet/WalletManagement.tsx">
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Connection, Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import WalletList from "../WalletList";
 
 interface WalletInfo {
   publicKey: string;
@@ -34,6 +25,7 @@ const WalletManagement = ({
   mainWalletPrivateKey,
   rpcEndpoint 
 }: WalletManagementProps) => {
+  const [isRefunding, setIsRefunding] = useState(false);
   const { toast } = useToast();
 
   const handleRefundAll = async () => {
@@ -56,6 +48,7 @@ const WalletManagement = ({
       return;
     }
 
+    setIsRefunding(true);
     const connection = new Connection(rpcEndpoint, "confirmed");
 
     try {
@@ -116,6 +109,8 @@ const WalletManagement = ({
         description: error.message || "Failed to refund wallets",
         variant: "destructive",
       });
+    } finally {
+      setIsRefunding(false);
     }
   };
 
@@ -127,9 +122,9 @@ const WalletManagement = ({
           <Button
             variant="outline"
             onClick={handleRefundAll}
-            disabled={wallets.length === 0}
+            disabled={isRefunding || wallets.length === 0}
           >
-            Refund All to Main Wallet
+            {isRefunding ? "Refunding..." : "Refund All to Main Wallet"}
           </Button>
         </div>
       </div>
