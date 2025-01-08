@@ -49,7 +49,7 @@ const TransactionProcessor = ({
       console.log(`Starting batch process for ${addressCount} wallets`);
       const generatedWallets: WalletCreationResult[] = [];
 
-      // Process each wallet in sequence
+      // Process wallets in sequence
       for (let i = 0; i < addressCount; i++) {
         try {
           console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
@@ -57,6 +57,16 @@ const TransactionProcessor = ({
           // Generate new wallet
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
+
+          // Calculate amounts
+          const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+          const totalAmount = buyAmount * LAMPORTS_PER_SOL + rentExemption;
+          
+          // Check source wallet balance
+          const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
+          if (sourceBalance < totalAmount) {
+            throw new Error(`Insufficient balance for wallet ${i + 1}. Required: ${totalAmount / LAMPORTS_PER_SOL} SOL`);
+          }
 
           // Process SOL transfer
           const signature = await processTransaction(
@@ -69,11 +79,14 @@ const TransactionProcessor = ({
           
           console.log("SOL transfer completed with signature:", signature);
 
-          // If token is selected, process token purchase
+          // Process token purchase if selected
+          let tokenBalance = 0;
           if (selectedToken && selectedToken !== "SOL") {
             setCurrentStep(2);
             console.log(`Processing token purchase for ${selectedToken}`);
             // Add token purchase logic here
+            // This would involve interacting with the selected DEX and token
+            tokenBalance = 0; // Update this when token purchase is implemented
           }
 
           // Add wallet to results
@@ -81,7 +94,7 @@ const TransactionProcessor = ({
             publicKey: newWallet.publicKey.toString(),
             privateKey: bs58.encode(newWallet.secretKey),
             solBalance: buyAmount,
-            tokenBalance: 0,
+            tokenBalance: tokenBalance,
           });
 
           // Update progress
@@ -100,7 +113,8 @@ const TransactionProcessor = ({
             description: `Failed to process wallet ${i + 1}: ${error.message}`,
             variant: "destructive",
           });
-          throw error;
+          // Continue with next wallet despite error
+          continue;
         }
       }
 
