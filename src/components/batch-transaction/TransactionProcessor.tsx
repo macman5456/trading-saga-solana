@@ -4,7 +4,6 @@ import { validatePrivateKey } from "@/utils/walletOperations";
 import { Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import bs58 from "bs58";
-import { calculateTransferAmount } from "@/utils/transaction/rentCalculations";
 import { processTransaction } from "@/utils/transaction/processTransaction";
 import { WalletCreationResult } from "@/utils/transaction/types";
 
@@ -52,26 +51,6 @@ const TransactionProcessor = ({
       }
 
       console.log("Source wallet validated:", sourceWallet.publicKey.toString());
-
-      if (!selectedToken) {
-        throw new Error("Please select a token before starting");
-      }
-
-      // Calculate total required amount for all transactions
-      const { totalRequired } = await calculateTransferAmount(
-        connection,
-        buyAmount,
-        jitoTip
-      );
-      
-      const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-      console.log("Source wallet balance:", sourceBalance / 1e9, "SOL");
-      console.log("Total required per transaction:", totalRequired / 1e9, "SOL");
-      console.log("Total required for all transactions:", (totalRequired * addressCount) / 1e9, "SOL");
-
-      if (sourceBalance < totalRequired * addressCount) {
-        throw new Error(`Insufficient balance. Required: ${(totalRequired * addressCount) / 1e9} SOL`);
-      }
 
       const generatedWallets: WalletCreationResult[] = [];
 

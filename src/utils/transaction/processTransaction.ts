@@ -8,70 +8,45 @@ export const processTransaction = async (
   jitoTip: number
 ): Promise<string> => {
   try {
-    console.log("\n=== Starting Transaction Process ===");
+    console.log("\n=== Starting Simple Transfer Process ===");
     console.log("Source wallet:", sourceWallet.publicKey.toString());
-    console.log("New wallet:", newWallet.publicKey.toString());
-    console.log("Buy amount:", buyAmount, "SOL");
-    console.log("Jito tip:", jitoTip, "SOL");
+    console.log("Destination wallet:", newWallet.publicKey.toString());
+    console.log("Transfer amount:", buyAmount, "SOL");
 
-    // Calculate amounts
-    const buyAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
-    const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+    // Convert SOL to lamports
+    const transferAmountLamports = Math.floor(buyAmount * LAMPORTS_PER_SOL);
     
-    console.log("\nAmount details (in lamports):");
-    console.log("Buy amount:", buyAmountLamports);
-    console.log("Jito tip:", jitoTipLamports);
-    console.log("Rent exemption:", rentExemption);
-
-    // Calculate total required
-    const totalRequired = buyAmountLamports + rentExemption + jitoTipLamports + 5000;
-
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    console.log("\nBalance check:");
-    console.log("Available:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
-    console.log("Required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
-
-    if (sourceBalance < totalRequired) {
-      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+    console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+    
+    if (sourceBalance < transferAmountLamports) {
+      throw new Error(`Insufficient balance. Required: ${transferAmountLamports / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
     }
 
-    // Get latest blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-    console.log("\nGot blockhash:", blockhash);
-
-    // Create transaction
+    // Create simple transfer transaction
     const transaction = new Transaction();
-
+    
     // Add transfer instruction
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet.publicKey,
         toPubkey: newWallet.publicKey,
-        lamports: buyAmountLamports + rentExemption,
+        lamports: transferAmountLamports,
       })
     );
 
-    // Add Jito tip if specified
-    if (jitoTip > 0) {
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: sourceWallet.publicKey,
-          toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-          lamports: jitoTipLamports,
-        })
-      );
-    }
-
-    // Set transaction properties
+    // Get latest blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    console.log("Got blockhash:", blockhash);
+    
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = sourceWallet.publicKey;
-
+    
     // Sign transaction
     transaction.sign(sourceWallet);
-
-    console.log("\nSending transaction...");
+    
+    console.log("Sending transaction...");
     
     // Send transaction
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
@@ -95,6 +70,11 @@ export const processTransaction = async (
     }
 
     console.log("Transaction confirmed successfully");
+    
+    // Verify the transfer
+    const newBalance = await connection.getBalance(newWallet.publicKey);
+    console.log("New wallet balance after transfer:", newBalance / LAMPORTS_PER_SOL, "SOL");
+
     return signature;
 
   } catch (error: any) {
