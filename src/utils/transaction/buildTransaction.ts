@@ -16,14 +16,12 @@ export const buildTransferTransaction = (
 
   const transaction = new Transaction();
   
-  // Add transfer instruction with exact amount including rent
+  // Use transfer instead of createAccount since we just want to send SOL
   transaction.add(
-    SystemProgram.createAccount({
+    SystemProgram.transfer({
       fromPubkey: sourceWallet.publicKey,
-      newAccountPubkey: newWallet.publicKey,
+      toPubkey: newWallet.publicKey,
       lamports: transferAmount,
-      space: 0,
-      programId: SystemProgram.programId,
     })
   );
 
