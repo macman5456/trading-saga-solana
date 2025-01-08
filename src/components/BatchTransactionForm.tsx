@@ -40,6 +40,7 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
   const [tokenBalance, setTokenBalance] = useState("0");
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [wallets, setWallets] = useState<WalletInfo[]>([]);
   const { toast } = useToast();
 
   const handlePrivateKeyChange = async (value: string) => {
@@ -151,7 +152,6 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
           mainWallet.publicKey
         );
 
-        // Update the success count directly with a number instead of a function
         onSuccessCountChange(i + 1);
         
         toast({
@@ -160,6 +160,8 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
         });
       }
 
+      // Update both local and parent state
+      setWallets(prevWallets => [...prevWallets, ...newWallets]);
       onWalletsGenerated(newWallets);
 
     } catch (error: any) {
@@ -172,6 +174,11 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleWalletsImported = (importedWallets: WalletInfo[]) => {
+    setWallets(prevWallets => [...prevWallets, ...importedWallets]);
+    onWalletsGenerated(importedWallets);
   };
 
   return (
@@ -245,8 +252,8 @@ const BatchTransactionForm = ({ onWalletsGenerated, onSuccessCountChange }: Batc
       </div>
 
       <WalletList 
-        wallets={[]} 
-        onWalletsImported={onWalletsGenerated}
+        wallets={wallets} 
+        onWalletsImported={handleWalletsImported}
       />
     </div>
   );
