@@ -7,7 +7,7 @@ import AddressCounter from "@/components/AddressCounter";
 import JitoTip from "@/components/JitoTip";
 import WalletBalance from "@/components/WalletBalance";
 import TransactionLog from "@/components/TransactionLog";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
 import { validatePrivateKey, checkWalletBalance, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
@@ -25,11 +25,9 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [successCount, setSuccessCount] = useState<number>(0);
   const [selectedDexEndpoint, setSelectedDexEndpoint] = useState<string>("https://api.mainnet-beta.solana.com");
-
-  const connection = new Connection(
-    selectedDexEndpoint,
-    "confirmed"
-  );
+  
+  // Use useRef to store the connection instance
+  const connectionRef = useRef(new Connection(selectedDexEndpoint, "confirmed"));
 
   const handlePrivateKeyChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -88,7 +86,7 @@ const Index = () => {
     let currentSuccessCount = 0;
 
     try {
-      const initialBalance = await checkWalletBalance(connection, mainWallet);
+      const initialBalance = await checkWalletBalance(connectionRef.current, mainWallet);
       console.log("Initial balance:", initialBalance / LAMPORTS_PER_SOL, "SOL");
 
       for (let i = 0; i < addressCount; i++) {
@@ -98,7 +96,7 @@ const Index = () => {
         });
 
         const newWallet = await createAndFundWallet(
-          connection,
+          connectionRef.current,
           parseFloat(buyAmount),
           parseFloat(jitoTip),
           mainWallet
@@ -107,7 +105,7 @@ const Index = () => {
         console.log(`New wallet ${i + 1} created:`, newWallet.publicKey.toString());
 
         await closeWallet(
-          connection,
+          connectionRef.current,
           newWallet,
           mainWallet.publicKey
         );
@@ -121,7 +119,7 @@ const Index = () => {
         });
       }
 
-      const newBalance = await checkWalletBalance(connection, mainWallet);
+      const newBalance = await checkWalletBalance(connectionRef.current, mainWallet);
       setSolBalance(newBalance / LAMPORTS_PER_SOL);
 
     } catch (error: any) {
@@ -138,8 +136,8 @@ const Index = () => {
 
   const handleDexSelect = (dexId: string, endpoint: string) => {
     setSelectedDexEndpoint(endpoint);
-    // Update connection with new endpoint
-    connection = new Connection(endpoint, "confirmed");
+    // Update connection with new endpoint using the ref
+    connectionRef.current = new Connection(endpoint, "confirmed");
   };
 
   return (
