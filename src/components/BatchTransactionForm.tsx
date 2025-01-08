@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey, createAndFundWallet, closeWallet } from "@/utils/walletOperations";
 import { useToast } from "@/hooks/use-toast";
 import BatchTransactionHeader from "./batch-transaction/BatchTransactionHeader";
 import WalletInputSection from "./batch-transaction/WalletInputSection";
 import TransactionControls from "./batch-transaction/TransactionControls";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { findLiquidityPool } from "@/utils/connectionUtils";
 
 interface WalletInfo {
@@ -41,6 +41,44 @@ const BatchTransactionForm = ({
   const { connection } = useConnection();
   const { toast } = useToast();
 
+  // Add useEffect to fetch balance when private key changes
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!privateKey) {
+        setPublicKey("");
+        setSolBalance("0");
+        return;
+      }
+
+      setIsLoadingBalance(true);
+      setBalanceError(null);
+
+      try {
+        const wallet = validatePrivateKey(privateKey);
+        if (!wallet) {
+          setBalanceError("Invalid private key");
+          return;
+        }
+
+        setPublicKey(wallet.publicKey.toString());
+        const balance = await connection.getBalance(wallet.publicKey, 'confirmed');
+        setSolBalance((balance / LAMPORTS_PER_SOL).toString());
+      } catch (error: any) {
+        console.error("Error fetching balance:", error);
+        setBalanceError(error.message);
+        toast({
+          title: "Error",
+          description: "Failed to fetch wallet balance",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    };
+
+    fetchBalance();
+  }, [privateKey, connection]);
+
   const handleStartTransaction = async () => {
     try {
       console.log("Starting transaction process...");
@@ -51,23 +89,12 @@ const BatchTransactionForm = ({
       // Validate private key
       const sourceWallet = validatePrivateKey(privateKey);
       if (!sourceWallet) {
-        console.error("Invalid private key provided");
-        toast({
-          title: "Error",
-          description: "Invalid private key provided",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Invalid private key provided");
       }
 
       // Validate token selection
       if (!selectedToken) {
-        toast({
-          title: "Error",
-          description: "Please select a token first",
-          variant: "destructive",
-        });
-        return;
+        throw new Error("Please select a token first");
       }
 
       console.log("Source wallet public key:", sourceWallet.publicKey.toString());
@@ -77,19 +104,41 @@ const BatchTransactionForm = ({
       // Step 1: Create and fund new wallets
       setCurrentStep(1);
       const generatedWallets: WalletInfo[] = [];
-      let successCount = 0;
 
       for (let i = 0; i < addressCount; i++) {
         try {
           console.log(`Creating wallet ${i + 1} of ${addressCount}`);
+          
+          // Get latest blockhash before each transaction
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+          console.log(`Using blockhash: ${blockhash} for wallet ${i + 1}`);
+
           const newWallet = await createAndFundWallet(
             connection,
             parseFloat(buyAmount),
-            0, // Jito tip amount
-            sourceWallet as Keypair
+            0,
+            sourceWallet
           );
 
           console.log(`Successfully created wallet ${i + 1}:`, newWallet.publicKey.toString());
+
+          // Step 2: Execute token purchase for each wallet
+          setCurrentStep(2);
+          console.log(`Executing token purchase for wallet ${i + 1}`);
+          
+          const poolExists = await findLiquidityPool(connection.rpcEndpoint, selectedToken);
+          if (!poolExists) {
+            throw new Error("Liquidity pool not found for selected token");
+          }
+
+          // Step 3: Transfer funds back to main wallet
+          setCurrentStep(3);
+          console.log(`Transferring remaining funds back for wallet ${i + 1}`);
+          await closeWallet(
+            connection,
+            newWallet,
+            sourceWallet.publicKey
+          );
 
           generatedWallets.push({
             publicKey: newWallet.publicKey.toString(),
@@ -98,26 +147,6 @@ const BatchTransactionForm = ({
             tokenBalance: 0,
           });
 
-          // Step 2: Execute token purchase for each wallet
-          setCurrentStep(2);
-          console.log(`Executing token purchase for wallet ${i + 1}`);
-          
-          // Check liquidity pool
-          const poolExists = await findLiquidityPool(connection.rpcEndpoint, selectedToken);
-          if (!poolExists) {
-            throw new Error("Liquidity pool not found for selected token");
-          }
-
-          // Step 3: Transfer funds back to main wallet
-          setCurrentStep(3);
-          console.log(`Transferring remaining funds back to main wallet for wallet ${i + 1}`);
-          await closeWallet(
-            connection,
-            newWallet,
-            sourceWallet.publicKey
-          );
-
-          successCount++;
           setProcessedWallets(i + 1);
         } catch (error: any) {
           console.error(`Error processing wallet ${i + 1}:`, error);
@@ -126,17 +155,17 @@ const BatchTransactionForm = ({
             description: `Failed to process wallet ${i + 1}: ${error.message}`,
             variant: "destructive",
           });
-          break;
+          throw error;
         }
       }
 
-      if (successCount > 0) {
-        console.log(`Successfully processed ${successCount} wallets`);
+      if (generatedWallets.length > 0) {
+        console.log(`Successfully processed ${generatedWallets.length} wallets`);
         onWalletsGenerated(generatedWallets);
-        onSuccessCountChange(successCount);
+        onSuccessCountChange(generatedWallets.length);
         toast({
           title: "Success",
-          description: `Successfully processed ${successCount} wallets`,
+          description: `Successfully processed ${generatedWallets.length} wallets`,
         });
       }
     } catch (error: any) {
