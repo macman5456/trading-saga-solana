@@ -25,6 +25,10 @@ const DEFAULT_RPC_ENDPOINTS = [
     url: "https://solana-api.projectserum.com",
   },
   {
+    name: "Quicknode",
+    url: "https://api.mainnet-beta.solana.com",
+  },
+  {
     name: "Custom",
     url: "",
   },
@@ -44,10 +48,11 @@ const RPCConfig = ({ onRPCChange }: RPCConfigProps) => {
     setIsLoading(true);
     try {
       const startTime = performance.now();
-      const connection = new Connection(url, "confirmed");
-      await connection.getSlot();
+      const connection = new Connection(url);
+      const version = await connection.getVersion();
       const endTime = performance.now();
       
+      console.log("RPC Version:", version);
       setLatency(Math.round(endTime - startTime));
       setIsConnected(true);
       onRPCChange(url);
