@@ -43,6 +43,8 @@ export const createAndFundWallet = async (
   fromWallet: Keypair
 ): Promise<Keypair> => {
   try {
+    console.log("Starting wallet creation with private key wallet:", fromWallet.publicKey.toString());
+    
     // Calculate total required amount including rent exemption and fees
     const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
     const jitoTipInLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
@@ -50,16 +52,19 @@ export const createAndFundWallet = async (
 
     // Check source wallet balance
     const sourceBalance = await checkWalletBalance(connection, fromWallet);
+    console.log("\nTransaction Details:");
     console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
-    console.log("Required amount:", totalRequired / LAMPORTS_PER_SOL, "SOL");
-    console.log("Breakdown:");
+    console.log("Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
+    console.log("\nBreakdown:");
     console.log("- Transfer amount:", amountInLamports / LAMPORTS_PER_SOL, "SOL");
     console.log("- Rent exemption:", RENT_EXEMPTION / LAMPORTS_PER_SOL, "SOL");
     console.log("- Jito tip:", jitoTipInLamports / LAMPORTS_PER_SOL, "SOL");
     console.log("- Transaction fee:", TRANSACTION_FEE / LAMPORTS_PER_SOL, "SOL");
     
     if (sourceBalance < totalRequired) {
-      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent and fees), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+      const errorMsg = `Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent and fees), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`;
+      console.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
     const newWallet = Keypair.generate();
@@ -76,6 +81,7 @@ export const createAndFundWallet = async (
 
     // Add Jito tip if specified
     if (jitoTip > 0) {
+      console.log("Adding Jito tip transaction");
       transaction.add(
         SystemProgram.transfer({
           fromPubkey: fromWallet.publicKey,
