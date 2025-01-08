@@ -3,6 +3,7 @@ import bs58 from "bs58";
 
 // Updated rent exemption calculation (approximately 0.00204928 SOL)
 const RENT_EXEMPTION = 2039280;
+const TRANSACTION_FEE = 5000; // 0.000005 SOL
 
 export const validatePrivateKey = (privateKey: string): Keypair | null => {
   try {
@@ -42,18 +43,23 @@ export const createAndFundWallet = async (
   fromWallet: Keypair
 ): Promise<Keypair> => {
   try {
-    // Calculate total required amount including rent exemption
+    // Calculate total required amount including rent exemption and fees
     const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
     const jitoTipInLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-    const totalRequired = amountInLamports + RENT_EXEMPTION + jitoTipInLamports;
+    const totalRequired = amountInLamports + RENT_EXEMPTION + jitoTipInLamports + TRANSACTION_FEE;
 
     // Check source wallet balance
     const sourceBalance = await checkWalletBalance(connection, fromWallet);
     console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
     console.log("Required amount:", totalRequired / LAMPORTS_PER_SOL, "SOL");
+    console.log("Breakdown:");
+    console.log("- Transfer amount:", amountInLamports / LAMPORTS_PER_SOL, "SOL");
+    console.log("- Rent exemption:", RENT_EXEMPTION / LAMPORTS_PER_SOL, "SOL");
+    console.log("- Jito tip:", jitoTipInLamports / LAMPORTS_PER_SOL, "SOL");
+    console.log("- Transaction fee:", TRANSACTION_FEE / LAMPORTS_PER_SOL, "SOL");
     
     if (sourceBalance < totalRequired) {
-      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+      throw new Error(`Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL (including rent and fees), Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
     }
 
     const newWallet = Keypair.generate();
@@ -64,7 +70,7 @@ export const createAndFundWallet = async (
       SystemProgram.transfer({
         fromPubkey: fromWallet.publicKey,
         toPubkey: newWallet.publicKey,
-        lamports: amountInLamports + RENT_EXEMPTION, // Include rent exemption in transfer
+        lamports: amountInLamports + RENT_EXEMPTION,
       })
     );
 
