@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface DexOption {
   id: string;
@@ -17,6 +18,23 @@ const dexOptions: DexOption[] = [
 ];
 
 const DexSelector = ({ selectedToken }: DexSelectorProps) => {
+  const { toast } = useToast();
+
+  const handleRaydiumTrade = (dexId: string) => {
+    if (dexId === "raydium" && selectedToken) {
+      // Construct Raydium swap URL with the selected token
+      const raydiumUrl = `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${selectedToken}`;
+      
+      // Open Raydium in a new tab
+      window.open(raydiumUrl, '_blank');
+      
+      toast({
+        title: "Opening Raydium",
+        description: "Redirecting to Raydium swap interface",
+      });
+    }
+  };
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">DEX Selection</label>
@@ -24,6 +42,7 @@ const DexSelector = ({ selectedToken }: DexSelectorProps) => {
         {dexOptions.map((dex) => (
           <button
             key={dex.id}
+            onClick={() => handleRaydiumTrade(dex.id)}
             className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-md transition-colors",
               dex.id === "raydium"
@@ -43,6 +62,7 @@ const DexSelector = ({ selectedToken }: DexSelectorProps) => {
               : "bg-secondary text-muted-foreground cursor-not-allowed"
           )}
           disabled={!selectedToken}
+          onClick={() => handleRaydiumTrade("raydium")}
         >
           Find Liquidity Pool
         </button>
