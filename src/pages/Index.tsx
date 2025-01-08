@@ -24,9 +24,10 @@ const Index = () => {
   const [jitoTip, setJitoTip] = useState<string>("0.00015");
   const [isProcessing, setIsProcessing] = useState(false);
   const [successCount, setSuccessCount] = useState<number>(0);
+  const [selectedDexEndpoint, setSelectedDexEndpoint] = useState<string>("https://api.mainnet-beta.solana.com");
 
   const connection = new Connection(
-    "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com",
+    selectedDexEndpoint,
     "confirmed"
   );
 
@@ -135,6 +136,12 @@ const Index = () => {
     }
   };
 
+  const handleDexSelect = (dexId: string, endpoint: string) => {
+    setSelectedDexEndpoint(endpoint);
+    // Update connection with new endpoint
+    connection = new Connection(endpoint, "confirmed");
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -174,7 +181,10 @@ const Index = () => {
           />
         </div>
 
-        <DexSelector selectedToken={selectedToken} />
+        <DexSelector 
+          selectedToken={selectedToken} 
+          onDexSelect={handleDexSelect}
+        />
 
         <div className="grid grid-cols-2 gap-4">
           <AddressCounter onCountChange={setAddressCount} />
