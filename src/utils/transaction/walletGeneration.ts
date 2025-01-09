@@ -31,31 +31,31 @@ export const distributeSOL = async (
   jitoTip: number = 0,
   onProgress: (count: number) => void
 ) => {
-  const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-  const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-
-  console.log("Distribution amount per wallet:", amount, "SOL");
-  console.log("Jito tip per transaction:", jitoTip, "SOL");
+  console.log("Starting SOL distribution...");
+  console.log("Amount per wallet:", amount, "SOL");
+  console.log("Jito tip:", jitoTip, "SOL");
 
   for (let i = 0; i < wallets.length; i++) {
-    console.log("\nProcessing wallet", i + 1 + ":", wallets[i].publicKey);
-    
     try {
-      const destinationKeypair = Keypair.fromSecretKey(
-        Buffer.from(wallets[i].privateKey, "base64")
-      );
+      console.log(`\nProcessing wallet ${i + 1}/${wallets.length}: ${wallets[i].publicKey}`);
+      
+      const destinationPubkey = new PublicKey(wallets[i].publicKey);
+      const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
+      const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
 
+      // Create a simple transfer instruction
+      const transferInstruction = SystemProgram.transfer({
+        fromPubkey: sourceWallet.publicKey,
+        toPubkey: destinationPubkey,
+        lamports: amountInLamports,
+      });
+
+      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      console.log("Got blockhash:", blockhash);
-
-      // Create a simple transfer transaction
-      const transaction = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: sourceWallet.publicKey,
-          toPubkey: destinationKeypair.publicKey,
-          lamports: amountInLamports,
-        })
-      );
+      
+      // Create and sign transaction
+      const transaction = new Transaction()
+        .add(transferInstruction);
 
       // Add Jito tip if specified
       if (jitoTipLamports > 0) {
@@ -70,30 +70,32 @@ export const distributeSOL = async (
 
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = sourceWallet.publicKey;
-
+      
       // Sign transaction
       transaction.sign(sourceWallet);
 
-      // Simulate before sending
-      const simulation = await connection.simulateTransaction(transaction);
-      console.log("Simulation result:", simulation.value);
-
-      if (simulation.value.err) {
-        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-      }
-
-      // Send and confirm transaction
+      console.log("Sending transaction...");
+      
+      // Send transaction with preflight checks disabled
       const signature = await connection.sendRawTransaction(transaction.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
+        skipPreflight: true, // Disable preflight checks
+        preflightCommitment: 'processed'
       });
 
-      await connection.confirmTransaction(signature);
-      console.log("Transaction confirmed:", signature);
+      console.log("Transaction sent, signature:", signature);
 
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+
+      console.log("Transaction confirmed successfully");
       onProgress(i + 1);
+
     } catch (error) {
-      console.error("Error processing wallet", i + 1 + ":", error);
+      console.error("Error processing wallet", i + 1, ":", error);
       throw error;
     }
   }
