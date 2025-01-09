@@ -24,11 +24,14 @@ export default defineConfig(({ mode }) => ({
         global: 'globalThis'
       },
     },
-    include: ['@jup-ag/core']
+    include: ['@jup-ag/core', '@solana/web3.js', 'buffer']
   },
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+    rollupOptions: {
+      external: ['@jup-ag/common'],
+    }
   }
 }));
