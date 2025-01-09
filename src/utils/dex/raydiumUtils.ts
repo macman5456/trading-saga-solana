@@ -10,9 +10,15 @@ export async function findRaydiumPool(
     const tokenMintPubkey = new PublicKey(tokenMint);
     
     // Get all Raydium pools with required config
+    const LIQUIDITY_PROGRAM_ID_V4 = new PublicKey("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8");
+    const LIQUIDITY_PROGRAM_ID_V5 = new PublicKey("5quBtoiQqxF9Jv6KYKctB59NT3gtJD2Y65kdnB1Uev3h");
+
     const allPools = await Liquidity.fetchAllPoolKeys(
       connection,
-      new PublicKey("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")
+      { 
+        '4': LIQUIDITY_PROGRAM_ID_V4, 
+        '5': LIQUIDITY_PROGRAM_ID_V5 
+      }
     );
     
     // Find pool containing the token
