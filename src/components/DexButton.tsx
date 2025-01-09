@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { findRaydiumPool, createRaydiumSwapTransaction, setupJupiterClient } from "@/utils/dex/raydiumUtils";
+import { findRaydiumPool, createRaydiumSwapTransaction } from "@/utils/dex/raydiumUtils";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -30,12 +30,6 @@ const DexButton = ({ id, name, icon, isSelected, isConnecting, onClick }: DexBut
           title: "Initializing Raydium",
           description: "Setting up Raydium DEX connection...",
         });
-
-        // Initialize Jupiter as backup route finder
-        const jupiter = await setupJupiterClient(connection);
-        if (jupiter) {
-          console.log("Jupiter client initialized successfully");
-        }
 
         toast({
           title: "DEX Initialized",

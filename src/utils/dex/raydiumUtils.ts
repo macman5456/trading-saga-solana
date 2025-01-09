@@ -9,11 +9,8 @@ export async function findRaydiumPool(
     console.log("Finding Raydium pool for token:", tokenMint);
     const tokenMintPubkey = new PublicKey(tokenMint);
     
-    // Get all Raydium pools with proper parameters
-    const allPools = await Liquidity.fetchAllPoolKeys(connection, {
-      ownerInfo: false,
-      chainTime: new Date().getTime() / 1000
-    });
+    // Get all Raydium pools
+    const allPools = await Liquidity.fetchAllPoolKeys(connection);
     
     // Find pool containing the token
     const pool = allPools.find(pool => 
