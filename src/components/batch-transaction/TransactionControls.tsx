@@ -48,6 +48,17 @@ const TransactionControls = ({
 
   const progress = isProcessing ? ((processedWallets / totalWallets) * 100) : 0;
 
+  // Ensure minimum SOL amount for rent exemption
+  const handleBuyAmountChange = (value: string) => {
+    const minAmount = 0.001; // Minimum amount to cover rent exemption
+    const numValue = parseFloat(value);
+    if (numValue < minAmount) {
+      onBuyAmountChange(minAmount.toString());
+    } else {
+      onBuyAmountChange(value);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
@@ -57,11 +68,11 @@ const TransactionControls = ({
           <div className="relative">
             <Input
               type="number"
-              placeholder="0.00001"
+              placeholder="0.001"
               value={buyAmount}
-              onChange={(e) => onBuyAmountChange(e.target.value)}
-              min="0.00001"
-              step="0.00001"
+              onChange={(e) => handleBuyAmountChange(e.target.value)}
+              min="0.001"
+              step="0.001"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               SOL
@@ -94,9 +105,9 @@ const TransactionControls = ({
               placeholder="Distribution Amount"
               className="w-32"
               value={buyAmount}
-              onChange={(e) => onBuyAmountChange(e.target.value)}
-              min="0.00001"
-              step="0.00001"
+              onChange={(e) => handleBuyAmountChange(e.target.value)}
+              min="0.001"
+              step="0.001"
             />
             <Button
               className="bg-primary hover:bg-primary/90 text-white whitespace-nowrap"
@@ -115,8 +126,7 @@ const TransactionControls = ({
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          The lowest service fee in the market, with each new address buy costing
-          only 0.00009 SOL.
+          Minimum amount of 0.001 SOL required per wallet to cover rent exemption.
         </p>
       </div>
     </div>
