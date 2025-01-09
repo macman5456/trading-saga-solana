@@ -52,6 +52,7 @@ const BatchTransactionForm = ({
   const {
     handleStartTransaction,
     handleGenerateWallets,
+    handleDistributeSOL,
     isProcessing,
     currentStep,
     processedWallets,
@@ -90,6 +91,7 @@ const BatchTransactionForm = ({
         onBuyAmountChange={setBuyAmount}
         onStartTransaction={handleStartTransaction}
         onGenerateWallets={handleGenerateWallets}
+        onDistributeSOL={handleDistributeSOL}
         currentStep={currentStep}
         processedWallets={processedWallets}
         totalWallets={addressCount}
