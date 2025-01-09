@@ -88,13 +88,24 @@ const TransactionControls = ({
           >
             Generate Wallets
           </Button>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={onDistributeSOL}
-            disabled={isProcessing || disabled}
-          >
-            Send To Wallet
-          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              placeholder="Distribution Amount"
+              className="w-32"
+              value={buyAmount}
+              onChange={(e) => onBuyAmountChange(e.target.value)}
+              min="0.00001"
+              step="0.00001"
+            />
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white whitespace-nowrap"
+              onClick={onDistributeSOL}
+              disabled={isProcessing || disabled}
+            >
+              Send To Wallet
+            </Button>
+          </div>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
             onClick={onStartTransaction}
