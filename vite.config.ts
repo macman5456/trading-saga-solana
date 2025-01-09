@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
       '@solana/wallet-adapter-react',
       '@solana/wallet-adapter-react-ui',
       '@solana/wallet-adapter-wallets',
+      '@jup-ag/common'
     ]
   },
   build: {
