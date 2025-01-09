@@ -34,6 +34,65 @@ const TransactionProcessor = ({
   const { connection } = useConnection();
   const { toast } = useToast();
 
+  const handleGenerateWallets = async () => {
+    if (isProcessing) return;
+
+    try {
+      setIsProcessing(true);
+      setCurrentStep(1);
+      setProcessedWallets(0);
+
+      const sourceWallet = validatePrivateKey(privateKey);
+      if (!sourceWallet) {
+        throw new Error("Invalid private key provided");
+      }
+
+      console.log(`Generating ${addressCount} wallets`);
+      const generatedWallets: WalletCreationResult[] = [];
+
+      for (let i = 0; i < addressCount; i++) {
+        try {
+          const newWallet = Keypair.generate();
+          generatedWallets.push({
+            publicKey: newWallet.publicKey.toString(),
+            privateKey: bs58.encode(newWallet.secretKey),
+            solBalance: 0,
+            tokenBalance: 0,
+          });
+
+          setProcessedWallets(i + 1);
+          onProcessedCountChange(i + 1);
+        } catch (error: any) {
+          console.error(`Error generating wallet ${i + 1}:`, error);
+          toast({
+            title: "Generation Failed",
+            description: `Failed to generate wallet ${i + 1}: ${error.message}`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      if (generatedWallets.length > 0) {
+        onSuccess(generatedWallets);
+        toast({
+          title: "Success",
+          description: `Successfully generated ${generatedWallets.length} wallets`,
+        });
+      }
+
+    } catch (error: any) {
+      console.error("Wallet generation error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate wallets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      setCurrentStep(0);
+    }
+  };
+
   const handleStartTransaction = async () => {
     if (isProcessing) return;
 
@@ -167,6 +226,7 @@ const TransactionProcessor = ({
 
   return {
     handleStartTransaction,
+    handleGenerateWallets,
     isProcessing,
     currentStep,
     processedWallets,

@@ -1,6 +1,5 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { Liquidity, Market } from '@raydium-io/raydium-sdk';
-import { Jupiter } from '@jup-ag/core';
+import { Liquidity } from '@raydium-io/raydium-sdk';
 
 export async function findRaydiumPool(
   connection: Connection,
@@ -10,8 +9,11 @@ export async function findRaydiumPool(
     console.log("Finding Raydium pool for token:", tokenMint);
     const tokenMintPubkey = new PublicKey(tokenMint);
     
-    // Get all Raydium pools
-    const allPools = await Liquidity.fetchAllPoolKeys(connection);
+    // Get all Raydium pools with proper parameters
+    const allPools = await Liquidity.fetchAllPoolKeys(connection, {
+      ownerInfo: false,
+      chainTime: new Date().getTime() / 1000
+    });
     
     // Find pool containing the token
     const pool = allPools.find(pool => 
@@ -89,23 +91,6 @@ export async function getTokenPrice(
     return null;
   } catch (error) {
     console.error("Error getting token price:", error);
-    return null;
-  }
-}
-
-export async function setupJupiterClient(
-  connection: Connection
-): Promise<Jupiter | null> {
-  try {
-    const jupiter = await Jupiter.load({
-      connection,
-      cluster: 'mainnet-beta',
-      user: null // Will be set during swap
-    });
-    
-    return jupiter;
-  } catch (error) {
-    console.error("Error setting up Jupiter client:", error);
     return null;
   }
 }
