@@ -1,12 +1,3 @@
-import { Keypair, Connection, PublicKey } from "@solana/web3.js";
-
-export interface TransactionConfig {
-  sourceWallet: Keypair;
-  amount: number;
-  jitoTip: number;
-  connection: Connection;
-}
-
 export interface WalletCreationResult {
   publicKey: string;
   privateKey: string;
@@ -15,7 +6,7 @@ export interface WalletCreationResult {
 }
 
 export interface TransactionResult {
+  signature: string;
   success: boolean;
-  signature?: string;
   error?: string;
 }
