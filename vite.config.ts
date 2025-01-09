@@ -3,21 +3,28 @@ import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
 export default defineConfig({
+  server: {
+    host: "::",
+    port: 8080,
+  },
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },
+    }
   },
   define: {
     'process.env': {},
-    'global': {},
+    'global': 'globalThis',
   },
   optimizeDeps: {
     esbuildOptions: {
       target: 'esnext',
       supported: { 
         bigint: true 
+      },
+      define: {
+        global: 'globalThis'
       },
     },
     include: [
