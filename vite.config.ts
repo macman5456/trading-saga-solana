@@ -16,10 +16,12 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['@solana/web3.js', '@jup-ag/core'],
   },
   define: {
     'process.env': {},
     'process.env.NODE_DEBUG': JSON.stringify(''),
+    global: {},
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -33,13 +35,18 @@ export default defineConfig(({ mode }) => ({
       '@solana/web3.js',
       'buffer',
       '@solana/wallet-adapter-base',
-      '@solana/wallet-adapter-react'
+      '@solana/wallet-adapter-react',
+      '@solana/wallet-adapter-react-ui',
+      '@solana/wallet-adapter-wallets',
     ]
   },
   build: {
     target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      external: ['@jup-ag/common'],
     }
   }
 }));
