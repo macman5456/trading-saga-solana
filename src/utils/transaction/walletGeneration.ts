@@ -1,8 +1,5 @@
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { WalletCreationResult } from "./types";
-import { JITO_TIP_ACCOUNT } from "./constants";
-
-const RENT_EXEMPTION = 890880; // ~0.00089088 SOL in lamports
 
 export const generateWallets = async (
   count: number,
@@ -36,23 +33,9 @@ export const distributeSOL = async (
 ) => {
   const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
   const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-  const totalPerWallet = amountInLamports + RENT_EXEMPTION;
 
-  console.log("Rent exemption per wallet:", RENT_EXEMPTION / LAMPORTS_PER_SOL, "SOL");
-  console.log("Distribution details per wallet:", {
-    amount: amount,
-    jitoTip: jitoTip,
-    rentExemption: RENT_EXEMPTION / LAMPORTS_PER_SOL,
-    total: totalPerWallet / LAMPORTS_PER_SOL,
-  });
-
-  const totalRequirements = {
-    totalAmount: (totalPerWallet * wallets.length) / LAMPORTS_PER_SOL,
-    totalJitoTip: (jitoTipLamports * wallets.length) / LAMPORTS_PER_SOL,
-    totalRent: (RENT_EXEMPTION * wallets.length) / LAMPORTS_PER_SOL,
-  };
-
-  console.log("Total requirements:", totalRequirements);
+  console.log("Distribution amount per wallet:", amount, "SOL");
+  console.log("Jito tip per transaction:", jitoTip, "SOL");
 
   for (let i = 0; i < wallets.length; i++) {
     console.log("\nProcessing wallet", i + 1 + ":", wallets[i].publicKey);
@@ -62,56 +45,38 @@ export const distributeSOL = async (
         Buffer.from(wallets[i].privateKey, "base64")
       );
 
-      // Get latest blockhash
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      console.log("Got fresh blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      console.log("Got blockhash:", blockhash);
 
-      // Create transaction
-      const transaction = new Transaction();
-
-      // First create account with minimum rent exemption
-      transaction.add(
-        SystemProgram.createAccount({
+      // Create a simple transfer transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
           fromPubkey: sourceWallet.publicKey,
-          newAccountPubkey: destinationKeypair.publicKey,
-          lamports: RENT_EXEMPTION,
-          space: 0,
-          programId: SystemProgram.programId,
+          toPubkey: destinationKeypair.publicKey,
+          lamports: amountInLamports,
         })
       );
-
-      // Then transfer the additional amount if needed
-      if (amountInLamports > 0) {
-        transaction.add(
-          SystemProgram.transfer({
-            fromPubkey: sourceWallet.publicKey,
-            toPubkey: destinationKeypair.publicKey,
-            lamports: amountInLamports,
-          })
-        );
-      }
 
       // Add Jito tip if specified
       if (jitoTipLamports > 0) {
         transaction.add(
           SystemProgram.transfer({
             fromPubkey: sourceWallet.publicKey,
-            toPubkey: new PublicKey(JITO_TIP_ACCOUNT),
+            toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
             lamports: jitoTipLamports,
           })
         );
       }
 
-      // Set transaction parameters
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = sourceWallet.publicKey;
 
-      // Sign with both source and destination wallets
-      transaction.sign(sourceWallet, destinationKeypair);
+      // Sign transaction
+      transaction.sign(sourceWallet);
 
-      // Simulate the transaction first
+      // Simulate before sending
       const simulation = await connection.simulateTransaction(transaction);
-      console.log("Simulation result:", simulation);
+      console.log("Simulation result:", simulation.value);
 
       if (simulation.value.err) {
         throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
@@ -123,11 +88,8 @@ export const distributeSOL = async (
         maxRetries: 3,
       });
 
-      await connection.confirmTransaction({
-        blockhash,
-        lastValidBlockHeight,
-        signature,
-      });
+      await connection.confirmTransaction(signature);
+      console.log("Transaction confirmed:", signature);
 
       onProgress(i + 1);
     } catch (error) {
