@@ -1,17 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
-import { componentTagger } from "lovable-tagger";
 
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean),
+export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -19,35 +11,33 @@ export default defineConfig(({ mode }) => ({
   },
   define: {
     'process.env': {},
-    'process.env.NODE_DEBUG': JSON.stringify(''),
-    global: 'globalThis',
+    'global': {},
   },
   optimizeDeps: {
     esbuildOptions: {
       target: 'esnext',
-      define: {
-        global: 'globalThis'
+      supported: { 
+        bigint: true 
       },
     },
     include: [
-      '@jup-ag/core',
       '@solana/web3.js',
-      'buffer',
       '@solana/wallet-adapter-base',
       '@solana/wallet-adapter-react',
       '@solana/wallet-adapter-react-ui',
       '@solana/wallet-adapter-wallets',
-      '@jup-ag/common'
+      '@jup-ag/core',
+      'bs58',
     ]
   },
   build: {
     target: 'esnext',
-    rollupOptions: {
-      external: ['@jup-ag/common', '@jup-ag/core'],
-    },
     commonjsOptions: {
       transformMixedEsModules: true,
-      include: [/@jup-ag\/.*/, /node_modules/],
+      include: [/node_modules/],
+    },
+    rollupOptions: {
+      external: ['@jup-ag/common'],
     }
-  }
-}));
+  },
+});
