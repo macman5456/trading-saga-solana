@@ -37,14 +37,14 @@ export const distributeSOL = async (
   wallets: WalletCreationResult[],
   amount: number,
   jitoTip: number,
-  onProgress: (count: number) => void
+  setProcessedWallets: (count: number) => void
 ) => {
   try {
     // Get rent exemption amount
     const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
     console.log("Rent exemption per wallet:", rentExemption / LAMPORTS_PER_SOL, "SOL");
 
-    // Calculate amounts per wallet
+    // Calculate amounts
     const amountInLamports = amount * LAMPORTS_PER_SOL;
     const jitoTipInLamports = jitoTip * LAMPORTS_PER_SOL;
     const transactionFee = 5000; // 0.000005 SOL per transaction
@@ -59,7 +59,7 @@ export const distributeSOL = async (
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    const totalRequired = totalPerWallet * wallets.length;
+    const totalRequired = (totalPerWallet * wallets.length) + (jitoTipInLamports * wallets.length);
 
     console.log("Total requirements:", {
       sourceBalance: sourceBalance / LAMPORTS_PER_SOL,
@@ -85,15 +85,19 @@ export const distributeSOL = async (
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
         console.log("Got fresh blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
         
-        // Create transfer instruction with the total amount (including rent)
-        const transferInstruction = SystemProgram.transfer({
-          fromPubkey: sourceWallet.publicKey,
-          toPubkey: destinationKeypair.publicKey,
-          lamports: totalPerWallet,
-        });
+        // Create transaction
+        const transaction = new Transaction();
 
-        const transaction = new Transaction().add(transferInstruction);
+        // Add transfer instruction with the total amount (including rent)
+        transaction.add(
+          SystemProgram.transfer({
+            fromPubkey: sourceWallet.publicKey,
+            toPubkey: destinationKeypair.publicKey,
+            lamports: totalPerWallet,
+          })
+        );
 
+        // Add Jito tip if specified
         if (jitoTip > 0) {
           transaction.add(
             SystemProgram.transfer({
@@ -110,6 +114,14 @@ export const distributeSOL = async (
         
         // Sign transaction
         transaction.sign(sourceWallet);
+        
+        // Simulate transaction before sending
+        const simulation = await connection.simulateTransaction(transaction);
+        console.log("Simulation result:", simulation.value);
+
+        if (simulation.value.err) {
+          throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+        }
         
         console.log("Sending transaction...");
         const signature = await connection.sendRawTransaction(transaction.serialize(), {
@@ -130,7 +142,7 @@ export const distributeSOL = async (
         }
 
         console.log("Transaction confirmed successfully");
-        onProgress(i + 1);
+        setProcessedWallets(i + 1);
 
         // Add delay between transactions
         if (i < wallets.length - 1) {
