@@ -80,7 +80,7 @@ const TransactionControls = ({
       <div className="flex flex-col items-center gap-2">
         <div className="flex gap-2">
           <Button
-            className="bg-secondary hover:bg-secondary/90 text-white"
+            className="bg-primary hover:bg-primary/90 text-white"
             onClick={onGenerateWallets}
             disabled={isProcessing || disabled}
           >
