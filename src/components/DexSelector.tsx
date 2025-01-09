@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { dexOptions } from "@/config/dexOptions";
 import { testConnection } from "@/utils/connectionUtils";
 import DexButton from "./DexButton";
-import { findRaydiumPool } from "@/utils/dex/raydiumUtils";
+import { findJupiterPool } from "@/utils/dex/jupiterUtils";
 import { useConnection } from "@solana/wallet-adapter-react";
 
 interface DexSelectorProps {
@@ -14,7 +14,7 @@ interface DexSelectorProps {
 
 const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   const { toast } = useToast();
-  const [selectedDex, setSelectedDex] = useState<string>("raydium");
+  const [selectedDex, setSelectedDex] = useState<string>("jupiter");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const { connection } = useConnection();
@@ -67,6 +67,15 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
       return;
     }
 
+    if (selectedToken === "SOL") {
+      toast({
+        title: "Invalid Selection",
+        description: "Cannot search for SOL pools. Please select a different token.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSearching(true);
     const selectedDexOption = dexOptions.find(dex => dex.id === selectedDex);
     if (!selectedDexOption) {
@@ -80,19 +89,13 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
         token: selectedToken
       });
       
-      let found = false;
-      
-      if (selectedDex === "raydium") {
-        const pool = await findRaydiumPool(connection, selectedToken);
-        found = pool !== null;
-        console.log("Raydium pool search result:", { found, pool });
-      }
+      const found = await findJupiterPool(connection, selectedToken);
       
       toast({
         title: found ? "Liquidity Pool Found" : "Search Failed",
         description: found 
-          ? `Found ${selectedToken} liquidity pool on ${selectedDexOption.name}`
-          : `Could not find liquidity pool on ${selectedDexOption.name}`,
+          ? `Found ${selectedToken} liquidity pool on Jupiter`
+          : `Could not find liquidity pool on Jupiter`,
         variant: found ? "default" : "destructive",
       });
     } catch (error: any) {

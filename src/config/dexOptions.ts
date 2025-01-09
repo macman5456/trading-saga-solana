@@ -7,21 +7,15 @@ export interface DexOption {
 
 export const dexOptions: DexOption[] = [
   { 
+    id: "jupiter", 
+    name: "Jupiter", 
+    icon: "🚀",
+    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
+  },
+  { 
     id: "raydium", 
     name: "Raydium", 
     icon: "🔸",
-    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
-  },
-  { 
-    id: "pump", 
-    name: "Pump", 
-    icon: "🎯",
-    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
-  },
-  { 
-    id: "moonshot", 
-    name: "MoonShot", 
-    icon: "🌙",
     rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
   },
 ];
