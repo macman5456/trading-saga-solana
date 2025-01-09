@@ -1,5 +1,4 @@
-import { Connection, Transaction, SystemProgram, Keypair, PublicKey } from "@solana/web3.js";
-import { RENT_EXEMPTION, TRANSACTION_FEE } from "./constants";
+import { Connection, Transaction, SystemProgram, Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 export const buildFundingTransaction = async (
   connection: Connection,
@@ -12,12 +11,16 @@ export const buildFundingTransaction = async (
   
   const transaction = new Transaction();
 
-  // Add the main transfer instruction with rent exemption included
+  // Add minimum balance (0.001 SOL) to the transfer amount
+  const minimumBalance = 0.001 * LAMPORTS_PER_SOL;
+  const totalAmount = Math.floor(amount * LAMPORTS_PER_SOL) + minimumBalance;
+
+  // Add the main transfer instruction
   transaction.add(
     SystemProgram.transfer({
       fromPubkey: fromWallet.publicKey,
       toPubkey: toWallet.publicKey,
-      lamports: amount + RENT_EXEMPTION,
+      lamports: totalAmount,
     })
   );
 
@@ -27,7 +30,7 @@ export const buildFundingTransaction = async (
       SystemProgram.transfer({
         fromPubkey: fromWallet.publicKey,
         toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-        lamports: jitoTip,
+        lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
       })
     );
   }
