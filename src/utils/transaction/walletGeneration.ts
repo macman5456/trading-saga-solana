@@ -32,66 +32,47 @@ export const distributeSOL = async (
   onProgress: (count: number) => void
 ) => {
   console.log("Starting SOL distribution...");
+  console.log("Source wallet:", sourceWallet.publicKey.toString());
   console.log("Amount per wallet:", amount, "SOL");
-  console.log("Jito tip:", jitoTip, "SOL");
-
+  
   for (let i = 0; i < wallets.length; i++) {
     try {
-      console.log(`\nProcessing wallet ${i + 1}/${wallets.length}: ${wallets[i].publicKey}`);
+      console.log(`Processing wallet ${i + 1}/${wallets.length}: ${wallets[i].publicKey}`);
       
-      const destinationPubkey = new PublicKey(wallets[i].publicKey);
+      // Convert amount to lamports
       const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
-      const jitoTipLamports = Math.floor(jitoTip * LAMPORTS_PER_SOL);
-
-      // Create a simple transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey: sourceWallet.publicKey,
-        toPubkey: destinationPubkey,
-        lamports: amountInLamports,
-      });
-
-      // Get recent blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
       
-      // Create and sign transaction
-      const transaction = new Transaction()
-        .add(transferInstruction);
+      // Create transfer instruction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: new PublicKey(wallets[i].publicKey),
+          lamports: amountInLamports,
+        })
+      );
 
-      // Add Jito tip if specified
-      if (jitoTipLamports > 0) {
-        transaction.add(
-          SystemProgram.transfer({
-            fromPubkey: sourceWallet.publicKey,
-            toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-            lamports: jitoTipLamports,
-          })
-        );
-      }
-
+      // Get latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = sourceWallet.publicKey;
-      
-      // Sign transaction
+
+      // Sign and send transaction
       transaction.sign(sourceWallet);
-
-      console.log("Sending transaction...");
       
-      // Send transaction with preflight checks disabled
-      const signature = await connection.sendRawTransaction(transaction.serialize(), {
-        skipPreflight: true, // Disable preflight checks
-        preflightCommitment: 'processed'
-      });
+      console.log("Sending transaction...");
+      const signature = await connection.sendRawTransaction(
+        transaction.serialize(),
+        { skipPreflight: true }
+      );
 
-      console.log("Transaction sent, signature:", signature);
-
-      // Wait for confirmation
+      console.log("Waiting for confirmation...");
       const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       
       if (confirmation.value.err) {
         throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
 
-      console.log("Transaction confirmed successfully");
+      console.log("Transaction confirmed successfully:", signature);
       onProgress(i + 1);
 
     } catch (error) {
