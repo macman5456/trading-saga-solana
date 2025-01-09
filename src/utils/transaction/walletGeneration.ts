@@ -1,4 +1,4 @@
-import { Keypair, Connection, LAMPORTS_PER_SOL, Transaction, SystemProgram } from "@solana/web3.js";
+import { Keypair, Connection, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
 import { WalletCreationResult } from "./types";
 import bs58 from "bs58";
 
@@ -78,17 +78,17 @@ export const distributeSOL = async (
       try {
         console.log(`\nProcessing wallet ${i + 1}:`, wallets[i].publicKey);
         
-        const destinationPubkey = new Keypair({
-          publicKey: bs58.decode(wallets[i].publicKey),
-          secretKey: bs58.decode(wallets[i].privateKey),
-        }).publicKey;
-
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
+        // Create destination wallet keypair from private key
+        const destinationKeypair = Keypair.fromSecretKey(bs58.decode(wallets[i].privateKey));
+        
+        // Get a fresh blockhash for each transaction
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+        console.log("Got fresh blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
         
         // Create transfer instruction with the total amount (including rent)
         const transferInstruction = SystemProgram.transfer({
           fromPubkey: sourceWallet.publicKey,
-          toPubkey: destinationPubkey,
+          toPubkey: destinationKeypair.publicKey,
           lamports: totalPerWallet,
         });
 
@@ -98,26 +98,32 @@ export const distributeSOL = async (
           transaction.add(
             SystemProgram.transfer({
               fromPubkey: sourceWallet.publicKey,
-              toPubkey: new Keypair().publicKey,
+              toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
               lamports: jitoTipInLamports,
             })
           );
         }
 
+        // Set the blockhash and fee payer
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = sourceWallet.publicKey;
-
-        // Sign and send transaction
+        
+        // Sign transaction
         transaction.sign(sourceWallet);
         
         console.log("Sending transaction...");
         const signature = await connection.sendRawTransaction(transaction.serialize(), {
           skipPreflight: false,
+          maxRetries: 3,
           preflightCommitment: 'confirmed',
         });
 
         console.log("Waiting for confirmation...");
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight,
+        }, 'confirmed');
         
         if (confirmation.value.err) {
           throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
