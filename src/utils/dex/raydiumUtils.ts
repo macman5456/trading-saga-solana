@@ -1,5 +1,5 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { Liquidity } from '@raydium-io/raydium-sdk';
+import { Liquidity, Market } from '@raydium-io/raydium-sdk';
 
 export async function findRaydiumPool(
   connection: Connection,
@@ -7,15 +7,18 @@ export async function findRaydiumPool(
 ): Promise<any | null> {
   try {
     console.log("Finding Raydium pool for token:", tokenMint);
+    
+    // Skip if token is SOL
+    if (tokenMint === "SOL") {
+      console.log("Skipping pool search for SOL");
+      return null;
+    }
+
     const tokenMintPubkey = new PublicKey(tokenMint);
     
-    // Get all Raydium pools with required config
-    const programIds = {
-      '4': new PublicKey("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"),
-      '5': new PublicKey("5quBtoiQqxF9Jv6KYKctB59NT3gtJD2Y65kdnB1Uev3h")
-    };
-
-    const allPools = await Liquidity.fetchAllPoolKeys(connection, programIds);
+    // Get all Raydium pools
+    const allPools = await Liquidity.fetchAllPoolKeys(connection);
+    console.log("Total pools found:", allPools.length);
     
     // Find pool containing the token
     const pool = allPools.find(pool => 
@@ -23,11 +26,19 @@ export async function findRaydiumPool(
       pool.quoteMint.equals(tokenMintPubkey)
     );
     
-    console.log("Found pool:", pool ? "yes" : "no");
-    return pool || null;
+    if (pool) {
+      console.log("Found matching pool:", pool.id.toString());
+      // Get pool info
+      const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys: pool });
+      console.log("Pool info:", poolInfo);
+    } else {
+      console.log("No matching pool found for token");
+    }
+    
+    return pool;
   } catch (error) {
     console.error("Error finding Raydium pool:", error);
-    return null;
+    throw error; // Propagate error for better error handling
   }
 }
 

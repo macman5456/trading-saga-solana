@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { dexOptions } from "@/config/dexOptions";
-import { testConnection, findLiquidityPool } from "@/utils/connectionUtils";
+import { testConnection } from "@/utils/connectionUtils";
 import DexButton from "./DexButton";
 import { findRaydiumPool } from "@/utils/dex/raydiumUtils";
 import { useConnection } from "@solana/wallet-adapter-react";
@@ -16,6 +16,7 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   const { toast } = useToast();
   const [selectedDex, setSelectedDex] = useState<string>("raydium");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const { connection } = useConnection();
 
   const handleDexSelection = async (dexId: string) => {
@@ -57,19 +58,34 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
   };
 
   const handleFindLiquidityPool = async () => {
-    if (!selectedToken) return;
+    if (!selectedToken) {
+      toast({
+        title: "Error",
+        description: "Please select a token first",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    setIsSearching(true);
     const selectedDexOption = dexOptions.find(dex => dex.id === selectedDex);
-    if (!selectedDexOption) return;
+    if (!selectedDexOption) {
+      setIsSearching(false);
+      return;
+    }
 
     try {
+      console.log("Searching for liquidity pool...", {
+        dex: selectedDex,
+        token: selectedToken
+      });
+      
       let found = false;
       
       if (selectedDex === "raydium") {
         const pool = await findRaydiumPool(connection, selectedToken);
         found = pool !== null;
-      } else {
-        found = await findLiquidityPool(selectedDexOption.rpcEndpoint, selectedToken);
+        console.log("Raydium pool search result:", { found, pool });
       }
       
       toast({
@@ -86,6 +102,8 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
         description: error.message || "Failed to search for liquidity pool",
         variant: "destructive",
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -109,12 +127,13 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
             "px-4 py-2 rounded-md transition-colors",
             selectedToken 
               ? "bg-primary text-white hover:bg-primary/90" 
-              : "bg-secondary text-muted-foreground cursor-not-allowed"
+              : "bg-secondary text-muted-foreground cursor-not-allowed",
+            isSearching && "opacity-50 cursor-wait"
           )}
-          disabled={!selectedToken || isConnecting}
+          disabled={!selectedToken || isConnecting || isSearching}
           onClick={handleFindLiquidityPool}
         >
-          Find Liquidity Pool
+          {isSearching ? "Searching..." : "Find Liquidity Pool"}
         </button>
       </div>
     </div>
