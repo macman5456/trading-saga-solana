@@ -1,5 +1,5 @@
 import { Jupiter } from '@jup-ag/core';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import JSBI from 'jsbi';
 
 export async function findJupiterPool(
@@ -51,7 +51,7 @@ export async function executeJupiterSwap(
   outputToken: PublicKey,
   amount: number,
   slippage: number = 1.0
-): Promise<string> {
+): Promise<Transaction | VersionedTransaction> {
   try {
     const routes = await jupiter.computeRoutes({
       inputMint: inputToken,
