@@ -82,14 +82,27 @@ export const distributeSOL = async (
         // Create transaction
         const transaction = new Transaction();
 
-        // Add transfer instruction with the total amount (including rent)
+        // First create account with minimum rent exemption
         transaction.add(
-          SystemProgram.transfer({
+          SystemProgram.createAccount({
             fromPubkey: sourceWallet.publicKey,
-            toPubkey: destinationKeypair.publicKey,
-            lamports: totalPerWallet,
+            newAccountPubkey: destinationKeypair.publicKey,
+            lamports: RENT_EXEMPTION,
+            space: 0,
+            programId: SystemProgram.programId,
           })
         );
+
+        // Then transfer the additional amount
+        if (amountInLamports > 0) {
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: sourceWallet.publicKey,
+              toPubkey: destinationKeypair.publicKey,
+              lamports: amountInLamports,
+            })
+          );
+        }
 
         // Add Jito tip if specified
         if (jitoTip > 0) {
@@ -105,8 +118,9 @@ export const distributeSOL = async (
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = sourceWallet.publicKey;
         
-        // Sign and send transaction
-        transaction.sign(sourceWallet);
+        // Sign with both source and destination wallets
+        transaction.sign(sourceWallet, destinationKeypair);
+        
         const signature = await connection.sendRawTransaction(transaction.serialize(), {
           skipPreflight: false,
           maxRetries: 3,
