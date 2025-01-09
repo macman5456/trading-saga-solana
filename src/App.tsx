@@ -15,6 +15,10 @@ import RPCConfig from "./components/RPCConfig";
 // Import wallet adapter CSS
 import "@solana/wallet-adapter-react-ui/styles.css";
 
+// Initialize buffer for Jupiter
+import { Buffer } from 'buffer';
+window.Buffer = Buffer;
+
 const queryClient = new QueryClient();
 
 const DEFAULT_RPC = "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com";
