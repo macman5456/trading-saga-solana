@@ -11,3 +11,9 @@ export interface WalletCreationResult {
   solBalance: number;
   tokenBalance: number;
 }
+
+export interface TransactionResult {
+  signature: string;
+  success: boolean;
+  error?: string;
+}

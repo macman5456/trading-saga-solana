@@ -5,7 +5,7 @@ import { JITO_TIP_ACCOUNT } from "./constants";
 export const addJitoTip = (
   transaction: Transaction,
   { sourceWallet, jitoTip }: TransactionConfig
-) => {
+): void => {
   if (jitoTip > 0) {
     transaction.add(
       SystemProgram.transfer({
@@ -15,5 +15,4 @@ export const addJitoTip = (
       })
     );
   }
-  return transaction;
 };
