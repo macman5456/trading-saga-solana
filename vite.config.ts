@@ -19,4 +19,18 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: 'globalThis'
+      },
+    },
+    include: ['@jup-ag/core']
+  },
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  }
 }));
