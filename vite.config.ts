@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         global: 'globalThis'
       },
     },
-    include: ['@jup-ag/core']
+    include: ['@jup-ag/core', '@jup-ag/common']
   },
   build: {
     commonjsOptions: {
