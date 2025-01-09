@@ -4,9 +4,6 @@ import TransactionLog from "@/components/TransactionLog";
 import TokenSelector from "@/components/TokenSelector";
 import WalletManagement from "@/components/wallet/WalletManagement";
 import DexSelector from "@/components/DexSelector";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
 
 interface WalletInfo {
   publicKey: string;
@@ -21,7 +18,6 @@ const Index = () => {
   const [selectedToken, setSelectedToken] = useState<string>("");
   const [selectedDex, setSelectedDex] = useState<string>("");
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>("");
-  const { signOut } = useAuth();
 
   const handleDexSelect = (dex: string, endpoint: string) => {
     setSelectedDex(dex);
@@ -30,17 +26,6 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen">
-      <div className="flex justify-end mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={signOut}
-          className="flex items-center gap-2"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </Button>
-      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-8">
         <div className="lg:col-span-2 space-y-8">
           <div className="space-y-8">
