@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { validatePrivateKey } from "@/utils/walletOperations";
-import { Keypair, LAMPORTS_PER_SOL, Transaction, SystemProgram, PublicKey } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { useToast } from "@/hooks/use-toast";
-import bs58 from "bs58";
-import { processTransaction } from "@/utils/transaction/processTransaction";
 import { WalletCreationResult } from "@/utils/transaction/types";
+import { generateWallets, distributeSOL } from "@/utils/transaction/walletGeneration";
 import { createRaydiumSwapTransaction } from "@/utils/dex/raydiumUtils";
 
 interface TransactionProcessorProps {
@@ -30,6 +29,7 @@ const TransactionProcessor = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [processedWallets, setProcessedWallets] = useState(0);
+  const [generatedWallets, setGeneratedWallets] = useState<WalletCreationResult[]>([]);
   
   const { connection } = useConnection();
   const { toast } = useToast();
@@ -47,44 +47,65 @@ const TransactionProcessor = ({
         throw new Error("Invalid private key provided");
       }
 
-      console.log(`Generating ${addressCount} wallets`);
-      const generatedWallets: WalletCreationResult[] = [];
+      const wallets = await generateWallets(
+        addressCount,
+        (wallets) => {
+          onSuccess(wallets);
+          setGeneratedWallets(wallets);
+        },
+        onProcessedCountChange
+      );
 
-      for (let i = 0; i < addressCount; i++) {
-        try {
-          const newWallet = Keypair.generate();
-          generatedWallets.push({
-            publicKey: newWallet.publicKey.toString(),
-            privateKey: bs58.encode(newWallet.secretKey),
-            solBalance: 0,
-            tokenBalance: 0,
-          });
-
-          setProcessedWallets(i + 1);
-          onProcessedCountChange(i + 1);
-        } catch (error: any) {
-          console.error(`Error generating wallet ${i + 1}:`, error);
-          toast({
-            title: "Generation Failed",
-            description: `Failed to generate wallet ${i + 1}: ${error.message}`,
-            variant: "destructive",
-          });
-        }
-      }
-
-      if (generatedWallets.length > 0) {
-        onSuccess(generatedWallets);
-        toast({
-          title: "Success",
-          description: `Successfully generated ${generatedWallets.length} wallets`,
-        });
-      }
+      toast({
+        title: "Success",
+        description: `Successfully generated ${wallets.length} wallets`,
+      });
 
     } catch (error: any) {
       console.error("Wallet generation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to generate wallets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      setCurrentStep(0);
+    }
+  };
+
+  const handleDistributeSOL = async () => {
+    if (isProcessing || !generatedWallets.length) return;
+
+    try {
+      setIsProcessing(true);
+      setCurrentStep(1);
+      setProcessedWallets(0);
+
+      const sourceWallet = validatePrivateKey(privateKey);
+      if (!sourceWallet) {
+        throw new Error("Invalid private key provided");
+      }
+
+      await distributeSOL(
+        connection,
+        sourceWallet,
+        generatedWallets,
+        buyAmount,
+        jitoTip,
+        setProcessedWallets
+      );
+
+      toast({
+        title: "Success",
+        description: `Successfully distributed SOL to ${generatedWallets.length} wallets`,
+      });
+
+    } catch (error: any) {
+      console.error("SOL distribution error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to distribute SOL",
         variant: "destructive",
       });
     } finally {
@@ -106,116 +127,36 @@ const TransactionProcessor = ({
         throw new Error("Invalid private key provided");
       }
 
-      console.log(`Starting batch process for ${addressCount} wallets`);
-      const generatedWallets: WalletCreationResult[] = [];
+      // First generate and fund wallets
+      await handleGenerateWallets();
+      await handleDistributeSOL();
 
-      // Get rent exemption amount once before the loop
-      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-      console.log("Rent exemption amount:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+      // Then process token swaps if needed
+      if (selectedToken && selectedToken !== "SOL") {
+        setCurrentStep(2);
+        for (const wallet of generatedWallets) {
+          const walletKeypair = validatePrivateKey(wallet.privateKey);
+          if (!walletKeypair) continue;
 
-      for (let i = 0; i < addressCount; i++) {
-        try {
-          console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
-          
-          const newWallet = Keypair.generate();
-          console.log("Generated new wallet:", newWallet.publicKey.toString());
-
-          // Calculate total amount needed including rent exemption and transaction fees
-          const transactionFee = 5000; // 0.000005 SOL
-          const totalAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption + transactionFee;
-          
-          const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-          if (sourceBalance < totalAmount) {
-            throw new Error(`Insufficient balance for wallet ${i + 1}. Required: ${totalAmount / LAMPORTS_PER_SOL} SOL`);
-          }
-
-          // Fund new wallet with exact amount needed
-          const fundingTx = new Transaction().add(
-            SystemProgram.transfer({
-              fromPubkey: sourceWallet.publicKey,
-              toPubkey: newWallet.publicKey,
-              lamports: totalAmount,
-            })
+          const swapTransaction = await createRaydiumSwapTransaction(
+            connection,
+            walletKeypair.publicKey,
+            selectedToken,
+            buyAmount
           );
 
-          if (jitoTip > 0) {
-            fundingTx.add(
-              SystemProgram.transfer({
-                fromPubkey: sourceWallet.publicKey,
-                toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
-                lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
-              })
-            );
+          if (swapTransaction) {
+            swapTransaction.sign(walletKeypair);
+            const swapSignature = await connection.sendRawTransaction(swapTransaction.serialize());
+            await connection.confirmTransaction(swapSignature);
           }
-
-          const { blockhash } = await connection.getLatestBlockhash('confirmed');
-          fundingTx.recentBlockhash = blockhash;
-          fundingTx.feePayer = sourceWallet.publicKey;
-          
-          fundingTx.sign(sourceWallet);
-          
-          console.log("Sending funding transaction...");
-          const fundingSignature = await connection.sendRawTransaction(fundingTx.serialize());
-          await connection.confirmTransaction(fundingSignature);
-          
-          console.log("SOL transfer completed with signature:", fundingSignature);
-
-          let tokenBalance = 0;
-          if (selectedToken && selectedToken !== "SOL") {
-            setCurrentStep(2);
-            console.log(`Processing token purchase for ${selectedToken}`);
-            
-            const swapTransaction = await createRaydiumSwapTransaction(
-              connection,
-              newWallet.publicKey,
-              selectedToken,
-              buyAmount
-            );
-
-            if (swapTransaction) {
-              swapTransaction.sign(newWallet);
-              const swapSignature = await connection.sendRawTransaction(swapTransaction.serialize());
-              await connection.confirmTransaction(swapSignature);
-              console.log("Token swap completed with signature:", swapSignature);
-              tokenBalance = 1;
-            } else {
-              console.error("Failed to create swap transaction");
-            }
-          }
-
-          generatedWallets.push({
-            publicKey: newWallet.publicKey.toString(),
-            privateKey: bs58.encode(newWallet.secretKey),
-            solBalance: buyAmount,
-            tokenBalance: tokenBalance,
-          });
-
-          setProcessedWallets(i + 1);
-          onProcessedCountChange(i + 1);
-
-          // Add delay between transactions
-          if (i < addressCount - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-
-        } catch (error: any) {
-          console.error(`Error processing wallet ${i + 1}:`, error);
-          toast({
-            title: "Transaction Failed",
-            description: `Failed to process wallet ${i + 1}: ${error.message}`,
-            variant: "destructive",
-          });
-          continue;
         }
       }
 
-      if (generatedWallets.length > 0) {
-        onSuccess(generatedWallets);
-        toast({
-          title: "Success",
-          description: `Successfully processed ${generatedWallets.length} wallets`,
-        });
-      }
+      toast({
+        title: "Success",
+        description: `Successfully processed all transactions`,
+      });
 
     } catch (error: any) {
       console.error("Transaction process error:", error);
@@ -233,6 +174,7 @@ const TransactionProcessor = ({
   return {
     handleStartTransaction,
     handleGenerateWallets,
+    handleDistributeSOL,
     isProcessing,
     currentStep,
     processedWallets,

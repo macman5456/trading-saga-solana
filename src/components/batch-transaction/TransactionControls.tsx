@@ -13,6 +13,7 @@ interface TransactionControlsProps {
   onBuyAmountChange: (amount: string) => void;
   onStartTransaction: () => void;
   onGenerateWallets: () => void;
+  onDistributeSOL: () => void;
   currentStep: number;
   processedWallets: number;
   totalWallets: number;
@@ -27,6 +28,7 @@ const TransactionControls = ({
   onBuyAmountChange,
   onStartTransaction,
   onGenerateWallets,
+  onDistributeSOL,
   currentStep,
   processedWallets,
   totalWallets,
@@ -85,6 +87,13 @@ const TransactionControls = ({
             disabled={isProcessing || disabled}
           >
             Generate Wallets
+          </Button>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={onDistributeSOL}
+            disabled={isProcessing || disabled}
+          >
+            Send To Wallet
           </Button>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
