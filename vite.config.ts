@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['@jup-ag/common', '@jup-ag/core'],
   },
   define: {
     'process.env': {},
@@ -44,6 +45,7 @@ export default defineConfig(({ mode }) => ({
     target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true,
+      include: [/@jup-ag\/.*/, /node_modules/],
     }
   }
 }));
