@@ -77,12 +77,6 @@ const DexSelector = ({ selectedToken, onDexSelect }: DexSelectorProps) => {
     }
 
     setIsSearching(true);
-    const selectedDexOption = dexOptions.find(dex => dex.id === selectedDex);
-    if (!selectedDexOption) {
-      setIsSearching(false);
-      return;
-    }
-
     try {
       console.log("Searching for liquidity pool...", {
         dex: selectedDex,

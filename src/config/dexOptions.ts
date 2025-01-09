@@ -11,11 +11,5 @@ export const dexOptions: DexOption[] = [
     name: "Jupiter", 
     icon: "🚀",
     rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
-  },
-  { 
-    id: "raydium", 
-    name: "Raydium", 
-    icon: "🔸",
-    rpcEndpoint: "https://georgianna-k21s7o-fast-mainnet.helius-rpc.com"
-  },
+  }
 ];

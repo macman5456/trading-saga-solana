@@ -12,7 +12,10 @@ export async function findJupiterPool(
     const jupiter = await Jupiter.load({
       connection,
       cluster: 'mainnet-beta',
-      // Remove userPublicKey as it's not needed for pool discovery
+      platformFeeAndAccounts: {
+        feeBps: 50,
+        feeAccounts: undefined
+      }
     });
 
     const inputToken = new PublicKey('So11111111111111111111111111111111111111112'); // SOL
@@ -23,6 +26,7 @@ export async function findJupiterPool(
       outputMint: outputToken,
       amount: JSBI.BigInt(1000000), // 0.001 SOL in lamports
       slippageBps: 100,
+      forceFetch: true
     });
 
     console.log("Jupiter routes found:", routes.routesInfos.length);
@@ -37,6 +41,38 @@ export async function findJupiterPool(
 
   } catch (error) {
     console.error("Error finding Jupiter pools:", error);
+    throw error;
+  }
+}
+
+export async function executeJupiterSwap(
+  jupiter: Jupiter,
+  inputToken: PublicKey,
+  outputToken: PublicKey,
+  amount: number,
+  slippage: number = 1.0
+): Promise<string> {
+  try {
+    const routes = await jupiter.computeRoutes({
+      inputMint: inputToken,
+      outputMint: outputToken,
+      amount: JSBI.BigInt(amount),
+      slippageBps: Math.floor(slippage * 100),
+      forceFetch: true
+    });
+
+    if (routes.routesInfos.length === 0) {
+      throw new Error("No routes found for swap");
+    }
+
+    const bestRoute = routes.routesInfos[0];
+    const { swapTransaction } = await jupiter.exchange({
+      routeInfo: bestRoute
+    });
+
+    return swapTransaction;
+  } catch (error) {
+    console.error("Error executing Jupiter swap:", error);
     throw error;
   }
 }
