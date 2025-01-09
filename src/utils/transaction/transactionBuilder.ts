@@ -1,35 +1,39 @@
-import { SystemProgram, Transaction, Connection, PublicKey } from "@solana/web3.js";
-import { TransactionConfig } from "./types";
-import { addJitoTip } from "./jitoUtils";
+import { Connection, Transaction, SystemProgram, Keypair, PublicKey } from "@solana/web3.js";
+import { RENT_EXEMPTION, TRANSACTION_FEE } from "./constants";
 
 export const buildFundingTransaction = async (
-  destinationPubkey: PublicKey,
-  config: TransactionConfig
-) => {
-  const { connection, sourceWallet, amount } = config;
-
-  // Get rent exemption
-  const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-  console.log("Rent exemption required:", rentExemption / 1000000000, "SOL");
-
-  // Get latest blockhash
+  connection: Connection,
+  fromWallet: Keypair,
+  toWallet: Keypair,
+  amount: number,
+  jitoTip: number
+): Promise<Transaction> => {
   const { blockhash } = await connection.getLatestBlockhash('confirmed');
+  
+  const transaction = new Transaction();
 
-  // Create transaction
-  let transaction = new Transaction().add(
+  // Add the main transfer instruction with rent exemption included
+  transaction.add(
     SystemProgram.transfer({
-      fromPubkey: sourceWallet.publicKey,
-      toPubkey: destinationPubkey,
-      lamports: amount * 1000000000 + rentExemption,
+      fromPubkey: fromWallet.publicKey,
+      toPubkey: toWallet.publicKey,
+      lamports: amount + RENT_EXEMPTION,
     })
   );
 
   // Add Jito tip if specified
-  transaction = addJitoTip(transaction, config);
+  if (jitoTip > 0) {
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: fromWallet.publicKey,
+        toPubkey: new PublicKey("JitoNbKdVMXKYLo24HJxjkPiXhHBhJQihxe1fwdnRQV"),
+        lamports: jitoTip,
+      })
+    );
+  }
 
-  // Set transaction properties
   transaction.recentBlockhash = blockhash;
-  transaction.feePayer = sourceWallet.publicKey;
+  transaction.feePayer = fromWallet.publicKey;
 
-  return { transaction, blockhash };
+  return transaction;
 };
