@@ -1,5 +1,6 @@
 import { Jupiter } from '@jup-ag/core';
 import { Connection, PublicKey } from '@solana/web3.js';
+import JSBI from 'jsbi';
 
 export async function findJupiterPool(
   connection: Connection,
@@ -11,7 +12,7 @@ export async function findJupiterPool(
     const jupiter = await Jupiter.load({
       connection,
       cluster: 'mainnet-beta',
-      userPublicKey: undefined, // We don't need a user public key just to find pools
+      // Remove userPublicKey as it's not needed for pool discovery
     });
 
     const inputToken = new PublicKey('So11111111111111111111111111111111111111112'); // SOL
@@ -20,7 +21,7 @@ export async function findJupiterPool(
     const routes = await jupiter.computeRoutes({
       inputMint: inputToken,
       outputMint: outputToken,
-      amount: 1000000, // 0.001 SOL in lamports
+      amount: JSBI.BigInt(1000000), // 0.001 SOL in lamports
       slippageBps: 100,
     });
 
