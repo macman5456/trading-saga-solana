@@ -42,80 +42,90 @@ export const distributeSOL = async (
   try {
     // Get rent exemption amount
     const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-    console.log("Rent exemption amount:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+    console.log("Rent exemption per wallet:", rentExemption / LAMPORTS_PER_SOL, "SOL");
 
-    const transactionFee = 5000; // 0.000005 SOL
-    const totalAmountPerWallet = (amount * LAMPORTS_PER_SOL) + rentExemption + transactionFee;
-    
-    console.log("Distribution details per wallet:");
-    console.log("- Amount requested:", amount, "SOL");
-    console.log("- Rent exemption:", rentExemption / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Transaction fee:", transactionFee / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Total per wallet:", totalAmountPerWallet / LAMPORTS_PER_SOL, "SOL");
+    // Calculate amounts per wallet
+    const amountInLamports = amount * LAMPORTS_PER_SOL;
+    const jitoTipInLamports = jitoTip * LAMPORTS_PER_SOL;
+    const transactionFee = 5000; // 0.000005 SOL per transaction
+    const totalPerWallet = amountInLamports + rentExemption + transactionFee;
+
+    console.log("Distribution details per wallet:", {
+      requestedAmount: amount,
+      rentExemption: rentExemption / LAMPORTS_PER_SOL,
+      transactionFee: transactionFee / LAMPORTS_PER_SOL,
+      total: totalPerWallet / LAMPORTS_PER_SOL,
+    });
 
     // Check source wallet balance
     const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
-    const totalRequired = totalAmountPerWallet * wallets.length;
-    
-    console.log("\nTotal requirements:");
-    console.log("- Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
-    console.log("- Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
+    const totalRequired = totalPerWallet * wallets.length;
+
+    console.log("Total requirements:", {
+      sourceBalance: sourceBalance / LAMPORTS_PER_SOL,
+      totalRequired: totalRequired / LAMPORTS_PER_SOL,
+      walletCount: wallets.length,
+    });
 
     if (sourceBalance < totalRequired) {
-      throw new Error(`Insufficient balance in source wallet. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`);
+      throw new Error(
+        `Insufficient balance. Required: ${totalRequired / LAMPORTS_PER_SOL} SOL, ` +
+        `Available: ${sourceBalance / LAMPORTS_PER_SOL} SOL`
+      );
     }
 
     for (let i = 0; i < wallets.length; i++) {
       try {
         console.log(`\nProcessing wallet ${i + 1}:`, wallets[i].publicKey);
         
-        const destinationWallet = new Keypair({
+        const destinationPubkey = new Keypair({
           publicKey: bs58.decode(wallets[i].publicKey),
           secretKey: bs58.decode(wallets[i].privateKey),
-        });
+        }).publicKey;
 
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        console.log("Got blockhash:", blockhash);
+        
+        // Create transfer instruction with the total amount (including rent)
+        const transferInstruction = SystemProgram.transfer({
+          fromPubkey: sourceWallet.publicKey,
+          toPubkey: destinationPubkey,
+          lamports: totalPerWallet,
+        });
 
-        const fundingTx = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: sourceWallet.publicKey,
-            toPubkey: destinationWallet.publicKey,
-            lamports: totalAmountPerWallet,
-          })
-        );
+        const transaction = new Transaction().add(transferInstruction);
 
         if (jitoTip > 0) {
-          fundingTx.add(
+          transaction.add(
             SystemProgram.transfer({
               fromPubkey: sourceWallet.publicKey,
               toPubkey: new Keypair().publicKey,
-              lamports: Math.floor(jitoTip * LAMPORTS_PER_SOL),
+              lamports: jitoTipInLamports,
             })
           );
         }
 
-        fundingTx.recentBlockhash = blockhash;
-        fundingTx.feePayer = sourceWallet.publicKey;
-        
-        fundingTx.sign(sourceWallet);
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = sourceWallet.publicKey;
+
+        // Sign and send transaction
+        transaction.sign(sourceWallet);
         
         console.log("Sending transaction...");
-        const signature = await connection.sendRawTransaction(fundingTx.serialize(), {
+        const signature = await connection.sendRawTransaction(transaction.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
         });
 
-        console.log("Transaction sent, signature:", signature);
+        console.log("Waiting for confirmation...");
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
         
         if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${confirmation.value.err}`);
+          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
         }
 
         console.log("Transaction confirmed successfully");
         onProgress(i + 1);
-        
+
         // Add delay between transactions
         if (i < wallets.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000));
