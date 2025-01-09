@@ -109,6 +109,10 @@ const TransactionProcessor = ({
       console.log(`Starting batch process for ${addressCount} wallets`);
       const generatedWallets: WalletCreationResult[] = [];
 
+      // Get rent exemption amount once before the loop
+      const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
+      console.log("Rent exemption amount:", rentExemption / LAMPORTS_PER_SOL, "SOL");
+
       for (let i = 0; i < addressCount; i++) {
         try {
           console.log(`\nProcessing wallet ${i + 1} of ${addressCount}`);
@@ -116,15 +120,16 @@ const TransactionProcessor = ({
           const newWallet = Keypair.generate();
           console.log("Generated new wallet:", newWallet.publicKey.toString());
 
-          const rentExemption = await connection.getMinimumBalanceForRentExemption(0);
-          const totalAmount = buyAmount * LAMPORTS_PER_SOL + rentExemption;
+          // Calculate total amount needed including rent exemption and transaction fees
+          const transactionFee = 5000; // 0.000005 SOL
+          const totalAmount = (buyAmount * LAMPORTS_PER_SOL) + rentExemption + transactionFee;
           
           const sourceBalance = await connection.getBalance(sourceWallet.publicKey);
           if (sourceBalance < totalAmount) {
             throw new Error(`Insufficient balance for wallet ${i + 1}. Required: ${totalAmount / LAMPORTS_PER_SOL} SOL`);
           }
 
-          // Fund new wallet
+          // Fund new wallet with exact amount needed
           const fundingTx = new Transaction().add(
             SystemProgram.transfer({
               fromPubkey: sourceWallet.publicKey,
@@ -149,6 +154,7 @@ const TransactionProcessor = ({
           
           fundingTx.sign(sourceWallet);
           
+          console.log("Sending funding transaction...");
           const fundingSignature = await connection.sendRawTransaction(fundingTx.serialize());
           await connection.confirmTransaction(fundingSignature);
           
@@ -159,7 +165,6 @@ const TransactionProcessor = ({
             setCurrentStep(2);
             console.log(`Processing token purchase for ${selectedToken}`);
             
-            // Create and execute Raydium swap transaction
             const swapTransaction = await createRaydiumSwapTransaction(
               connection,
               newWallet.publicKey,
@@ -172,7 +177,7 @@ const TransactionProcessor = ({
               const swapSignature = await connection.sendRawTransaction(swapTransaction.serialize());
               await connection.confirmTransaction(swapSignature);
               console.log("Token swap completed with signature:", swapSignature);
-              tokenBalance = 1; // This would be the actual token amount received
+              tokenBalance = 1;
             } else {
               console.error("Failed to create swap transaction");
             }
@@ -188,6 +193,7 @@ const TransactionProcessor = ({
           setProcessedWallets(i + 1);
           onProcessedCountChange(i + 1);
 
+          // Add delay between transactions
           if (i < addressCount - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
