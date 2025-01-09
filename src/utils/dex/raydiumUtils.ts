@@ -1,6 +1,8 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { Liquidity, Market } from '@raydium-io/raydium-sdk';
 
+const SEARCH_TIMEOUT = 30000; // 30 seconds timeout
+
 export async function findRaydiumPool(
   connection: Connection,
   tokenMint: string
@@ -22,7 +24,22 @@ export async function findRaydiumPool(
       '5': new PublicKey("5quBtoiQqxF9Jv6KYKctB59NT3gtJD2Y65kdnB1Uev3h")
     };
 
-    const allPools = await Liquidity.fetchAllPoolKeys(connection, programIds);
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Pool search timed out')), SEARCH_TIMEOUT);
+    });
+
+    // Create the pool search promise
+    const searchPromise = Liquidity.fetchAllPoolKeys(connection, programIds);
+
+    // Race between timeout and search
+    const allPools = await Promise.race([searchPromise, timeoutPromise]) as Awaited<ReturnType<typeof Liquidity.fetchAllPoolKeys>>;
+    
+    if (!allPools || allPools.length === 0) {
+      console.log("No pools found");
+      throw new Error("No Raydium pools found");
+    }
+
     console.log("Total pools found:", allPools.length);
     
     // Find pool containing the token
@@ -33,8 +50,9 @@ export async function findRaydiumPool(
     
     if (pool) {
       console.log("Found matching pool:", pool.id.toString());
-      // Get pool info
-      const poolInfo = await Liquidity.fetchInfo({ connection, poolKeys: pool });
+      // Get pool info with timeout
+      const poolInfoPromise = Liquidity.fetchInfo({ connection, poolKeys: pool });
+      const poolInfo = await Promise.race([poolInfoPromise, timeoutPromise]);
       console.log("Pool info:", poolInfo);
     } else {
       console.log("No matching pool found for token");
@@ -43,7 +61,7 @@ export async function findRaydiumPool(
     return pool;
   } catch (error) {
     console.error("Error finding Raydium pool:", error);
-    throw error; // Propagate error for better error handling
+    throw error;
   }
 }
 
