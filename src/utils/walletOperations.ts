@@ -57,7 +57,7 @@ export const createAndFundWallet = async (
   
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`Attempt ${attempt + 1} of ${MAX_RETRIES} to create and fund wallet`);
+      console.log(`\n=== Attempt ${attempt + 1} of ${MAX_RETRIES} to create and fund wallet ===`);
       
       // Calculate total required amount including rent exemption and fees
       const amountInLamports = Math.floor(amount * LAMPORTS_PER_SOL);
@@ -68,6 +68,10 @@ export const createAndFundWallet = async (
       const sourceBalance = await checkWalletBalance(connection, fromWallet);
       console.log("\nTransaction Details:");
       console.log("Source wallet balance:", sourceBalance / LAMPORTS_PER_SOL, "SOL");
+      console.log("Amount to transfer:", amountInLamports / LAMPORTS_PER_SOL, "SOL");
+      console.log("Rent exemption:", RENT_EXEMPTION / LAMPORTS_PER_SOL, "SOL");
+      console.log("Jito tip:", jitoTipInLamports / LAMPORTS_PER_SOL, "SOL");
+      console.log("Transaction fee:", TRANSACTION_FEE / LAMPORTS_PER_SOL, "SOL");
       console.log("Total required:", totalRequired / LAMPORTS_PER_SOL, "SOL");
       
       if (sourceBalance < totalRequired) {
@@ -81,15 +85,18 @@ export const createAndFundWallet = async (
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       console.log("Got fresh blockhash:", blockhash, "lastValidBlockHeight:", lastValidBlockHeight);
 
+      // Create transaction for funding the new wallet
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: fromWallet.publicKey,
           toPubkey: newWallet.publicKey,
-          lamports: amountInLamports + RENT_EXEMPTION,
+          lamports: amountInLamports + RENT_EXEMPTION, // Include rent exemption in the transfer
         })
       );
 
+      // Add Jito tip if specified
       if (jitoTip > 0) {
+        console.log("Adding Jito tip transaction");
         transaction.add(
           SystemProgram.transfer({
             fromPubkey: fromWallet.publicKey,
@@ -101,15 +108,25 @@ export const createAndFundWallet = async (
 
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromWallet.publicKey;
-      transaction.sign(fromWallet);
 
-      console.log("Sending transaction...");
+      // Simulate transaction before sending
+      console.log("Simulating transaction...");
+      const simulation = await connection.simulateTransaction(transaction);
+      console.log("Simulation result:", simulation.value);
+
+      if (simulation.value.err) {
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
+
+      console.log("Simulation successful, sending transaction...");
+      transaction.sign(fromWallet);
+      
       const signature = await connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed',
       });
 
-      console.log("Transaction sent:", signature);
+      console.log("Transaction sent! Signature:", signature);
       
       const confirmation = await connection.confirmTransaction({
         signature,
@@ -121,7 +138,10 @@ export const createAndFundWallet = async (
         throw new Error(`Transaction failed: ${confirmation.value.err}`);
       }
 
-      console.log("Transaction confirmed successfully");
+      // Verify final balance
+      const finalBalance = await connection.getBalance(newWallet.publicKey);
+      console.log("New wallet final balance:", finalBalance / LAMPORTS_PER_SOL, "SOL");
+
       return newWallet;
     } catch (error: any) {
       console.error(`Attempt ${attempt + 1} failed:`, error);
