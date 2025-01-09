@@ -16,12 +16,11 @@ export default defineConfig(({ mode }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    dedupe: ['@solana/web3.js', '@jup-ag/core'],
   },
   define: {
     'process.env': {},
     'process.env.NODE_DEBUG': JSON.stringify(''),
-    global: {},
+    global: 'globalThis',
   },
   optimizeDeps: {
     esbuildOptions: {
@@ -44,9 +43,6 @@ export default defineConfig(({ mode }) => ({
     target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true,
-    },
-    rollupOptions: {
-      external: ['@jup-ag/common'],
     }
   }
 }));
