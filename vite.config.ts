@@ -36,9 +36,6 @@ export default defineConfig(({ command }) => ({
     target: 'esnext',
     commonjsOptions: {
       transformMixedEsModules: true,
-    },
-    rollupOptions: {
-      external: ['@jup-ag/common'],
     }
   }
 }));
